@@ -4,37 +4,82 @@ import { useNavigate } from 'react-router-dom';
 const Selecao = () => {
   const navigate = useNavigate();
 
+  // Cores fixas para garantir que apareça sempre
+  const colors = {
+    green: '#009E49', // Verde Guiné
+    red: '#CE1126',   // Vermelho Guiné
+    yellow: '#FCD116',// Amarelo Guiné
+    black: '#000000',
+    white: '#FFFFFF'
+  };
+
   return (
-    <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: '#f0f0f0' }}>
-      <h1 style={{ color: 'var(--gb-black)', marginBottom: '30px' }}>Bem-vindo ao <span style={{color: 'var(--gb-green)'}}>SESOFA</span></h1>
-      <p style={{ marginBottom: '40px', fontWeight: 'bold' }}>Escolha o portal de acesso:</p>
-      
+    <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: '#f4f4f4', fontFamily: 'Arial, sans-serif' }}>
+
+      <h1 style={{ color: colors.black, marginBottom: '30px', fontSize: '2rem' }}>
+        Bem-vindo ao <span style={{ color: colors.green, fontWeight: 'bold' }}>SESOFA</span>
+      </h1>
+
+      <p style={{ marginBottom: '40px', fontWeight: 'bold', color: '#555' }}>Escolha o portal de acesso:</p>
+
       <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap', justifyContent: 'center' }}>
-        {/* Card Cliente - Passa o tipo 'cliente' */}
-        <div onClick={() => navigate('/login', { state: { portal: 'cliente' } })} style={cardStyle('var(--gb-green)')}>
-          <h2 style={{ color: 'white' }}>PORTAL DO CLIENTE</h2>
-          <p style={{ color: 'white' }}>Acesse sua contabilidade e negócios</p>
+
+        {/* Card Cliente */}
+        <div
+          onClick={() => navigate('/login', { state: { portal: 'cliente' } })}
+          style={{ ...baseCardStyle, background: colors.green }}
+        >
+          <h2 style={{ color: 'white', marginBottom: '10px' }}>SOU CLIENTE</h2>
+          <p style={{ color: 'white', fontSize: '14px' }}>Acesse sua contabilidade e negócios</p>
         </div>
 
-        {/* Card Administrador - Passa o tipo 'admin' */}
-        <div onClick={() => navigate('/login', { state: { portal: 'admin' } })} style={cardStyle('var(--gb-red)')}>
-          <h2 style={{ color: 'white' }}>PORTAL GESTÃO</h2>
-          <p style={{ color: 'white' }}>Área restrita para administradores (Dembah & Seco)</p>
+        {/* Card Administrador */}
+        <div
+          onClick={() => navigate('/login', { state: { portal: 'admin' } })}
+          style={{ ...baseCardStyle, background: colors.black }}
+        >
+          <h2 style={{ color: 'white', marginBottom: '10px' }}>SOU GESTOR</h2>
+          <p style={{ color: 'white', fontSize: '14px' }}>Área restrita (Dembah & Seco)</p>
         </div>
+
       </div>
+
+      <div style={{ marginTop: '40px' }}>
+        <p style={{ fontSize: '14px', color: '#666' }}>Ainda não tem conta?</p>
+        <button
+          onClick={() => navigate('/cadastro')}
+          style={{
+            marginTop: '10px',
+            padding: '10px 25px',
+            border: `2px solid ${colors.red}`,
+            color: colors.red,
+            background: 'transparent',
+            borderRadius: '50px',
+            fontWeight: 'bold',
+            cursor: 'pointer'
+          }}
+        >
+          CRIAR CONTA GRÁTIS
+        </button>
+      </div>
+
     </div>
   );
 };
 
-const cardStyle = (color) => ({
-  background: color,
+// Estilo base dos cartões
+const baseCardStyle = {
   padding: '40px',
   borderRadius: '15px',
   width: '280px',
   textAlign: 'center',
   cursor: 'pointer',
   boxShadow: '0 10px 20px rgba(0,0,0,0.1)',
-  transition: '0.3s'
-});
+  transition: 'transform 0.2s',
+  display: 'flex',
+  flexDirection: 'column',
+  justifyContent: 'center',
+  alignItems: 'center'
+};
 
 export default Selecao;
