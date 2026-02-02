@@ -29,20 +29,19 @@ cloudinary.config({
   api_secret: apiSecret
 });
 
+// CONFIGURAÇÃO CORRIGIDA PARA PERMITIR DOWNLOAD
 const storage = new CloudinaryStorage({
   cloudinary: cloudinary,
   params: async (req, file) => {
-    // --- CORREÇÃO IMPORTANTE AQUI ---
-    // Remove espaços e parênteses do nome do arquivo
+    // Limpa o nome do arquivo
     const nomeLimpo = file.originalname.split('.')[0].replace(/[^a-zA-Z0-9]/g, '_');
-
-    const isPdf = file.mimetype === 'application/pdf';
-
+    
     return {
       folder: 'sesofa_documentos',
-      resource_type: isPdf ? 'raw' : 'image',
+      // MUDANÇA CRUCIAL: 'auto' permite transformar PDF e forçar download
+      resource_type: 'auto', 
       public_id: nomeLimpo + '-' + Date.now(),
-      format: isPdf ? 'pdf' : 'png',
+      // Removemos a formatação forçada para deixar o Cloudinary decidir
     };
   },
 });
@@ -59,10 +58,12 @@ app.post('/api/auth/upload', (req, res) => {
 
     try {
       const { clienteId, tipoDoc } = req.body;
+      // Define se é PDF baseado no mimetype para salvar corretamente no banco
+      // (Isso não afeta o Cloudinary, apenas nosso registro)
       const novoDoc = new Documento({
         clienteId,
-        nomeArquivo: req.file.originalname,
-        caminho: req.file.path,
+        nomeArquivo: req.file.originalname, 
+        caminho: req.file.path, 
         tipoDoc: tipoDoc || 'Recibo/Fatura',
         status: 'Pendente'
       });
