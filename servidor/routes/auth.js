@@ -381,5 +381,25 @@ router.put('/perfil', authMiddleware, async (req, res) => {
     res.status(500).json({ error: "Erro ao atualizar perfil." });
   }
 });
+// ==========================================
+// --- ROTA DE RESET DE SENHA (PELO ADMIN) ---
+// ==========================================
+router.put('/admin/reset-senha/:id', authMiddleware, async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // 1. Gera a nova senha padrão "123456"
+    const salt = await bcrypt.genSalt(10);
+    const novaSenhaHash = await bcrypt.hash("123456", salt);
+
+    // 2. Atualiza no banco
+    await User.findByIdAndUpdate(id, { senha: novaSenhaHash });
+
+    res.json({ msg: "✅ Senha resetada para '123456' com sucesso!" });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Erro ao resetar senha." });
+  }
+});
 
 module.exports = router;
