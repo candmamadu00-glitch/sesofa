@@ -10,6 +10,7 @@ const authRoutes = require('./routes/auth');
 
 const app = express();
 
+// Aumenta o limite para aceitar arquivos grandes
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
@@ -29,19 +30,17 @@ cloudinary.config({
   api_secret: apiSecret
 });
 
-// CONFIGURAÇÃO CORRIGIDA PARA PERMITIR DOWNLOAD
+// CONFIGURAÇÃO DE UPLOAD (MUDAMOS PARA 'RAW' PARA EVITAR ERROS EM PDF)
 const storage = new CloudinaryStorage({
   cloudinary: cloudinary,
   params: async (req, file) => {
-    // Limpa o nome do arquivo
+    // Limpa caracteres especiais do nome do arquivo
     const nomeLimpo = file.originalname.split('.')[0].replace(/[^a-zA-Z0-9]/g, '_');
     
     return {
       folder: 'sesofa_documentos',
-      // MUDANÇA CRUCIAL: 'auto' permite transformar PDF e forçar download
-      resource_type: 'auto', 
+      resource_type: 'raw', // 'raw' é o mais seguro para documentos/PDFs não corromperem
       public_id: nomeLimpo + '-' + Date.now(),
-      // Removemos a formatação forçada para deixar o Cloudinary decidir
     };
   },
 });
@@ -58,8 +57,7 @@ app.post('/api/auth/upload', (req, res) => {
 
     try {
       const { clienteId, tipoDoc } = req.body;
-      // Define se é PDF baseado no mimetype para salvar corretamente no banco
-      // (Isso não afeta o Cloudinary, apenas nosso registro)
+      
       const novoDoc = new Documento({
         clienteId,
         nomeArquivo: req.file.originalname, 
