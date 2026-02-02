@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import api from '../api';
-import { Users, FileText, LogOut, CheckCircle, PlusCircle, Bell, Download, XCircle, Briefcase, Search, Filter, Trash2, History } from 'lucide-react';
+import { Users, FileText, LogOut, CheckCircle, PlusCircle, Bell, Download, XCircle, Briefcase, Search, Trash2 } from 'lucide-react';
 import RelatorioFinanceiro from '../components/RelatorioFinanceiro';
 
 const PainelAdmin = () => {
@@ -25,6 +25,9 @@ const PainelAdmin = () => {
   const [consultoriaForm, setConsultoriaForm] = useState({ clienteId: '', titulo: '', mensagem: '' });
   const [servicoForm, setServicoForm] = useState({ clienteId: '', titulo: '', descricao: '', custo: '' });
   const [clienteSelecionado, setClienteSelecionado] = useState(null);
+
+  // Estado para mostrar loading no botão de download específico
+  const [baixandoId, setBaixandoId] = useState(null);
 
   const carregarDados = useCallback(async () => {
     try {
@@ -65,20 +68,41 @@ const PainelAdmin = () => {
     return correspondeBusca && correspondeStatus;
   });
 
-  // --- CORREÇÃO DO DOWNLOAD ---
-  const baixarArquivo = (url) => {
+  // --- FUNÇÃO DE DOWNLOAD FORÇADO (BLOB) ---
+  const baixarArquivo = async (url, nomeArquivo, docId) => {
     if (!url) return alert("Erro: Link não encontrado.");
+    
+    // Troca http por https para evitar bloqueio de segurança mista
+    const secureUrl = url.replace('http://', 'https://');
+    
+    setBaixandoId(docId); // Ativa o "Carregando..." no botão
 
-    // 1. Garante HTTPS
-    let urlFinal = url.replace('http://', 'https://');
+    try {
+      // Passo 1: O javascript vai lá buscar o arquivo
+      const response = await fetch(secureUrl);
+      if (!response.ok) throw new Error("Erro ao acessar o arquivo");
+      
+      const blob = await response.blob();
+      
+      // Passo 2: Cria um link fantasma na memória do navegador
+      const downloadUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = downloadUrl;
+      link.download = nomeArquivo || 'documento-sesofa.pdf'; // Força o nome do arquivo
+      
+      // Passo 3: Clica no link automaticamente e baixa
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(downloadUrl);
 
-    // 2. Truque do Cloudinary: Adiciona 'fl_attachment' para FORÇAR o download
-    if (urlFinal.includes('/upload/')) {
-      urlFinal = urlFinal.replace('/upload/', '/upload/fl_attachment/');
+    } catch (error) {
+      console.error("Erro no download direto:", error);
+      // Plano B: Se tudo der errado, abre em nova aba
+      window.open(secureUrl, '_blank');
+    } finally {
+      setBaixandoId(null);
     }
-
-    // Abre o link direto de download na mesma aba (dispara o download)
-    window.open(urlFinal, '_self');
   };
 
   const mudarStatusDoc = async (id, novoStatus) => {
@@ -186,8 +210,8 @@ const PainelAdmin = () => {
 
         {aba === 'solicitacoes' && (
           <div style={cardStyle}>
-            <h3>Solicitações</h3>
-            <div style={{ overflowX: 'auto' }}><table style={{ ...tableStyle, minWidth: '600px' }}><thead><tr><th style={tableHeader}>Cliente</th><th style={tableHeader}>Serviço</th><th style={tableHeader}>Detalhes</th><th style={tableHeader}>Data</th></tr></thead><tbody>{solicitacoes.map(s => (<tr key={s._id}><td style={tableCell}>{s.clienteId?.nome}</td><td style={tableCell}>{s.servicoDesejado}</td><td style={tableCell}>{s.detalhes}</td><td style={tableCell}>{new Date(s.dataSolicitacao || Date.now()).toLocaleDateString()}</td></tr>))}</tbody></table></div>
+             <h3>Solicitações</h3>
+             <div style={{ overflowX: 'auto' }}><table style={{ ...tableStyle, minWidth: '600px' }}><thead><tr><th style={tableHeader}>Cliente</th><th style={tableHeader}>Serviço</th><th style={tableHeader}>Detalhes</th><th style={tableHeader}>Data</th></tr></thead><tbody>{solicitacoes.map(s => (<tr key={s._id}><td style={tableCell}>{s.clienteId?.nome}</td><td style={tableCell}>{s.servicoDesejado}</td><td style={tableCell}>{s.detalhes}</td><td style={tableCell}>{new Date(s.dataSolicitacao || Date.now()).toLocaleDateString()}</td></tr>))}</tbody></table></div>
           </div>
         )}
 
@@ -222,15 +246,32 @@ const PainelAdmin = () => {
                     <td style={tableCell}>{new Date(doc.dataEnvio || Date.now()).toLocaleDateString()}</td>
                     <td style={tableCell}>{doc.clienteId?.nome}</td>
                     <td style={tableCell}>
-                      <button onClick={() => baixarArquivo(doc.caminho)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#007bff', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '5px' }}>
-                        <Download size={16} /> Baixar Arquivo
+                      <button 
+                        onClick={() => baixarArquivo(doc.caminho, doc.nomeArquivo, doc._id)} 
+                        disabled={baixandoId === doc._id}
+                        style={{ 
+                          background: 'none', 
+                          border: 'none', 
+                          cursor: baixandoId === doc._id ? 'wait' : 'pointer', 
+                          color: baixandoId === doc._id ? '#999' : '#007bff', 
+                          fontWeight: 'bold', 
+                          display: 'flex', 
+                          alignItems: 'center', 
+                          gap: '5px' 
+                        }}
+                      >
+                        {baixandoId === doc._id ? (
+                           <>⏳ Baixando...</>
+                        ) : (
+                           <><Download size={16} /> Baixar</>
+                        )}
                       </button>
                     </td>
                     <td style={tableCell}>{doc.status || 'Pendente'}</td>
                     <td style={{ ...tableCell, display: 'flex', gap: '10px' }}>
-                      <button onClick={() => mudarStatusDoc(doc._id, 'Aprovado')} style={{ border: 'none', background: '#28a745', color: 'white', borderRadius: '5px', padding: '5px' }}><CheckCircle size={18} /></button>
-                      <button onClick={() => mudarStatusDoc(doc._id, 'Recusado')} style={{ border: 'none', background: '#dc3545', color: 'white', borderRadius: '5px', padding: '5px' }}><XCircle size={18} /></button>
-                      <button onClick={() => deletarItem(doc._id, 'documento')} style={{ border: 'none', background: '#111', color: 'white', borderRadius: '5px', padding: '5px' }}><Trash2 size={18} /></button>
+                       <button onClick={() => mudarStatusDoc(doc._id, 'Aprovado')} style={{ border: 'none', background: '#28a745', color: 'white', borderRadius: '5px', padding: '5px' }}><CheckCircle size={18} /></button>
+                       <button onClick={() => mudarStatusDoc(doc._id, 'Recusado')} style={{ border: 'none', background: '#dc3545', color: 'white', borderRadius: '5px', padding: '5px' }}><XCircle size={18} /></button>
+                       <button onClick={() => deletarItem(doc._id, 'documento')} style={{ border: 'none', background: '#111', color: 'white', borderRadius: '5px', padding: '5px' }}><Trash2 size={18} /></button>
                     </td>
                   </tr>
                 ))}</tbody>
