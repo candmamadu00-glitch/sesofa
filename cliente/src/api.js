@@ -1,9 +1,9 @@
 import axios from 'axios';
 
-// --- CONFIGURAÇÃO AUTOMÁTICA DE URL ---
-// Se existir um link configurado no .env (Produção), usa ele.
-// Se não, usa o localhost (Desenvolvimento).
-const baseURL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api/auth';
+// --- CONFIGURAÇÃO DE URL ---
+// Trocamos o localhost pelo link do Render
+// Se você tiver rotas que não são de auth, talvez precise tirar o /auth do final
+const baseURL = 'https://sesofa.onrender.com/api/auth'; 
 
 const api = axios.create({
   baseURL: baseURL
