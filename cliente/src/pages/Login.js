@@ -1,45 +1,42 @@
 import React, { useState } from 'react';
-import api from '../api'; // Importando a configuração centralizada
-import { useNavigate, useLocation } from 'react-router-dom';
+import api from '../api'; 
+import { useNavigate, useLocation, Link } from 'react-router-dom'; // Adicionei o Link
 
 const Login = () => {
   const [email, setEmail] = useState('');
   const [senha, setSenha] = useState('');
+  const [loading, setLoading] = useState(false); // Adicionei estado de loading
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Verifica se veio do portal de gestão (admin)
   const isAdminPortal = location.state?.portal === 'admin';
 
   const handleLogin = async (e) => {
     e.preventDefault();
+    setLoading(true); // Ativa o loading
     try {
-      // CHAMADA LIMPA: Não precisa de 'http://localhost:5000/api/auth'
-      // O arquivo api.js já sabe o caminho base!
       const res = await api.post('/login', { email, senha });
 
-      // Salvando os dados retornados
       localStorage.setItem('token', res.data.token);
       localStorage.setItem('userId', res.data.user.id);
       localStorage.setItem('userName', res.data.user.nome);
       localStorage.setItem('userRole', res.data.user.role);
 
-      // Redirecionamento baseado no cargo
       if (res.data.user.role === 'admin') {
         navigate('/painel-admin');
       } else {
         navigate('/painel-cliente');
       }
     } catch (err) {
-      // Tratamento de erro melhorado
-      alert(err.response?.data?.error || "Falha na conexão com o servidor SESOFA");
+      alert(err.response?.data?.error || "Falha na conexão. Verifique seus dados.");
       console.error("Erro no login:", err);
+    } finally {
+      setLoading(false); // Desativa o loading
     }
   };
 
   return (
     <div style={{ display: 'flex', height: '100vh', background: '#000' }}>
-       {/* Faixas de cores da bandeira (identidade SESOFA) */}
        <div style={{ width: '20px', background: 'var(--gb-red)' }}></div>
        <div style={{ width: '20px', background: 'var(--gb-yellow)' }}></div>
        <div style={{ width: '20px', background: 'var(--gb-green)' }}></div>
@@ -71,26 +68,33 @@ const Login = () => {
               <button 
                 type="submit" 
                 className="btn-gb" 
+                disabled={loading}
                 style={{ 
                   width: '100%', 
                   background: isAdminPortal ? 'var(--gb-red)' : 'var(--gb-green)',
-                  cursor: 'pointer'
+                  cursor: loading ? 'wait' : 'pointer',
+                  opacity: loading ? 0.7 : 1
                 }}
               >
-                ENTRAR NO SISTEMA
+                {loading ? 'ENTRANDO...' : 'ENTRAR NO SISTEMA'}
               </button>
             </form>
             
             {!isAdminPortal && (
               <div style={{ marginTop: '20px', textAlign: 'center' }}>
-                <a href="/recuperar" style={{ color: 'var(--gb-red)', textDecoration: 'none', fontSize: '14px' }}>Esqueceu a senha?</a>
+                {/* Usando Link do react-router para ser mais rápido */}
+                <Link to="/recuperar" style={{ color: 'var(--gb-red)', textDecoration: 'none', fontSize: '14px' }}>
+                   Esqueceu a senha?
+                </Link>
                 <br />
-                <span style={{ fontSize: '14px' }}>Não tem conta? <a href="/cadastro" style={{ color: 'var(--gb-green)' }}>Cadastre-se aqui</a></span>
+                <span style={{ fontSize: '14px', display:'block', marginTop:'10px' }}>
+                   Não tem conta? <Link to="/register" style={{ color: 'var(--gb-green)' }}>Cadastre-se aqui</Link>
+                </span>
               </div>
             )}
 
             <div style={{ marginTop: '20px', textAlign: 'center', borderTop: '1px solid #eee', paddingTop: '15px' }}>
-                <a href="/" style={{ fontSize: '12px', color: '#999', textDecoration: 'none' }}>← Voltar para seleção de portal</a>
+                <Link to="/" style={{ fontSize: '12px', color: '#999', textDecoration: 'none' }}>← Voltar para seleção de portal</Link>
             </div>
           </div>
        </div>
