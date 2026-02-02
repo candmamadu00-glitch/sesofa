@@ -5,7 +5,11 @@ const jwt = require('jsonwebtoken');
 
 // Importação dos Modelos
 const User = require('../models/User');
-// (Outros imports se houver, mantenha...)
+const Financeiro = require('../models/Financeiro');
+const Consultoria = require('../models/Consultoria');
+const Documento = require('../models/Documento');
+const Servico = require('../models/Servico');
+const Solicitacao = require('../models/Solicitacao');
 
 // Middleware de Proteção
 const authMiddleware = require('../middleware/authMiddleware');
@@ -18,7 +22,7 @@ const authMiddleware = require('../middleware/authMiddleware');
 router.post('/register', async (req, res) => {
   try {
     const { nome, email, telefone, senha } = req.body;
-
+    
     // Verifica se já existe
     const existe = await User.findOne({ email });
     if (existe) return res.status(400).json({ error: "E-mail já cadastrado." });
@@ -29,16 +33,16 @@ router.post('/register', async (req, res) => {
 
     // --- SEGURANÇA MÁXIMA AQUI ---
     // Forçamos o role ser 'cliente'. Ninguém pode se cadastrar como 'admin'.
-    const novoUsuario = new User({
-      nome,
-      email,
-      telefone,
+    const novoUsuario = new User({ 
+      nome, 
+      email, 
+      telefone, 
       senha: hashedSenha,
-      role: 'cliente'  // <--- ISSO GARANTE A SEGURANÇA DO CADASTRO
+      role: 'cliente'  
     });
 
     await novoUsuario.save();
-
+    
     res.status(201).json({ msg: "Usuário criado com sucesso! Faça login." });
   } catch (err) {
     console.error("Erro no registro:", err);
@@ -46,23 +50,20 @@ router.post('/register', async (req, res) => {
   }
 });
 
-// Login de Usuário (BLINDADO NO FRONTEND, FUNCIONAL AQUI)
+// Login de Usuário
 router.post('/login', async (req, res) => {
   try {
     const { email, senha } = req.body;
 
-    // Verifica se usuário existe
     const user = await User.findOne({ email });
     if (!user) return res.status(400).json({ error: "Usuário não encontrado." });
 
-    // Verifica a senha
     const senhaCorreta = await bcrypt.compare(senha, user.senha);
     if (!senhaCorreta) return res.status(400).json({ error: "Senha incorreta." });
 
-    // Cria o Token (Crachá)
     const token = jwt.sign(
-      { id: user._id, role: user.role }, // O token carrega o cargo verdadeiro
-      process.env.JWT_SECRET || 'segredo_padrao', // Use env em produção
+      { id: user._id, role: user.role }, 
+      process.env.JWT_SECRET || 'segredo_padrao', 
       { expiresIn: '1d' }
     );
 
@@ -72,7 +73,7 @@ router.post('/login', async (req, res) => {
         id: user._id,
         nome: user.nome,
         email: user.email,
-        role: user.role // Envia o cargo para o frontend verificar
+        role: user.role 
       }
     });
   } catch (err) {
@@ -81,7 +82,7 @@ router.post('/login', async (req, res) => {
   }
 });
 
-// Recuperação de senha (Simples)
+// Recuperação de senha
 router.post('/forgot-password', async (req, res) => {
   const { contato } = req.body;
   try {
@@ -95,14 +96,12 @@ router.post('/forgot-password', async (req, res) => {
 });
 
 // ==========================================
-// --- ROTAS FINANCEIRAS (ATUALIZADO PARA O GRÁFICO) ---
+// --- ROTAS FINANCEIRAS ---
 // ==========================================
 
-// 1. Lançamento Financeiro (Salvar)
 router.post('/lancamento', authMiddleware, async (req, res) => {
   try {
     const { clienteId, tipo, descricao, valor } = req.body;
-    // Adicionamos a data atual automaticamente se não vier
     const novoLancamento = new Financeiro({
       clienteId,
       tipo,
@@ -117,7 +116,6 @@ router.post('/lancamento', authMiddleware, async (req, res) => {
   }
 });
 
-// 2. Buscar Extrato Completo (Para o Gráfico e Lista)
 router.get('/financeiro/:clienteId', authMiddleware, async (req, res) => {
   try {
     const lancamentos = await Financeiro.find({ clienteId: req.params.clienteId }).sort({ data: -1 });
@@ -127,7 +125,6 @@ router.get('/financeiro/:clienteId', authMiddleware, async (req, res) => {
   }
 });
 
-// 3. Deletar Lançamento (Para corrigir erros)
 router.delete('/financeiro/:id', authMiddleware, async (req, res) => {
   try {
     await Financeiro.findByIdAndDelete(req.params.id);
@@ -137,7 +134,6 @@ router.delete('/financeiro/:id', authMiddleware, async (req, res) => {
   }
 });
 
-// Dashboard Antigo (Mantido para compatibilidade se necessário)
 router.get('/estatisticas/:clienteId', authMiddleware, async (req, res) => {
   try {
     const lancamentos = await Financeiro.find({ clienteId: req.params.clienteId });
@@ -156,10 +152,9 @@ router.get('/estatisticas/:clienteId', authMiddleware, async (req, res) => {
 });
 
 // ==========================================
-// --- ROTAS DO ADMINISTRADOR (Protegidas) ---
+// --- ROTAS DO ADMINISTRADOR ---
 // ==========================================
 
-// Listar clientes
 router.get('/clientes', authMiddleware, async (req, res) => {
   try {
     const usuarios = await User.find({ role: 'cliente' }).select('-senha');
@@ -169,7 +164,6 @@ router.get('/clientes', authMiddleware, async (req, res) => {
   }
 });
 
-// Listar todos os documentos
 router.get('/documentos-geral', authMiddleware, async (req, res) => {
   try {
     const documentos = await Documento.find().populate('clienteId', 'nome').sort({ dataEnvio: -1 });
@@ -179,7 +173,6 @@ router.get('/documentos-geral', authMiddleware, async (req, res) => {
   }
 });
 
-// Atualizar status do documento
 router.put('/documentos/:id', authMiddleware, async (req, res) => {
   try {
     const { status } = req.body;
@@ -190,7 +183,6 @@ router.put('/documentos/:id', authMiddleware, async (req, res) => {
   }
 });
 
-// Enviar consultoria
 router.post('/enviar-consultoria', authMiddleware, async (req, res) => {
   try {
     const { clienteId, titulo, mensagem } = req.body;
@@ -202,7 +194,6 @@ router.post('/enviar-consultoria', authMiddleware, async (req, res) => {
   }
 });
 
-// Registrar serviço no histórico
 router.post('/registrar-servico', authMiddleware, async (req, res) => {
   try {
     const { clienteId, titulo, descricao, custo } = req.body;
@@ -221,7 +212,6 @@ router.post('/registrar-servico', authMiddleware, async (req, res) => {
   }
 });
 
-// Ver solicitações
 router.get('/solicitacoes-geral', authMiddleware, async (req, res) => {
   try {
     const solicitacoes = await Solicitacao.find().populate('clienteId', 'nome').sort({ dataSolicitacao: -1 });
@@ -232,10 +222,9 @@ router.get('/solicitacoes-geral', authMiddleware, async (req, res) => {
 });
 
 // ==========================================
-// --- ROTAS DO CLIENTE (Protegidas) ---
+// --- ROTAS DO CLIENTE ---
 // ==========================================
 
-// Minhas Consultorias
 router.get('/minha-consultoria/:clienteId', authMiddleware, async (req, res) => {
   try {
     const dicas = await Consultoria.find({ clienteId: req.params.clienteId }).sort({ data: -1 });
@@ -245,7 +234,6 @@ router.get('/minha-consultoria/:clienteId', authMiddleware, async (req, res) => 
   }
 });
 
-// Meus Serviços
 router.get('/meus-servicos/:clienteId', authMiddleware, async (req, res) => {
   try {
     const historico = await Servico.find({ clienteId: req.params.clienteId }).sort({ dataRealizacao: -1 });
@@ -255,7 +243,6 @@ router.get('/meus-servicos/:clienteId', authMiddleware, async (req, res) => {
   }
 });
 
-// Meus Documentos
 router.get('/meus-documentos/:clienteId', authMiddleware, async (req, res) => {
   try {
     const docs = await Documento.find({ clienteId: req.params.clienteId }).sort({ dataEnvio: -1 });
@@ -265,7 +252,6 @@ router.get('/meus-documentos/:clienteId', authMiddleware, async (req, res) => {
   }
 });
 
-// Solicitar Serviço
 router.post('/solicitar-servico', authMiddleware, async (req, res) => {
   try {
     const { clienteId, servicoDesejado, detalhes } = req.body;
@@ -281,7 +267,6 @@ router.post('/solicitar-servico', authMiddleware, async (req, res) => {
 // --- ROTAS DE EXCLUSÃO (Admin) ---
 // ==========================================
 
-// Deletar Documento
 router.delete('/documentos/:id', authMiddleware, async (req, res) => {
   try {
     await Documento.findByIdAndDelete(req.params.id);
@@ -291,11 +276,9 @@ router.delete('/documentos/:id', authMiddleware, async (req, res) => {
   }
 });
 
-// Deletar Cliente
 router.delete('/clientes/:id', authMiddleware, async (req, res) => {
   try {
     await User.findByIdAndDelete(req.params.id);
-    // Limpa dados órfãos para não ocupar espaço no banco
     await Documento.deleteMany({ clienteId: req.params.id });
     await Financeiro.deleteMany({ clienteId: req.params.id });
     await Consultoria.deleteMany({ clienteId: req.params.id });
@@ -312,10 +295,8 @@ router.delete('/clientes/:id', authMiddleware, async (req, res) => {
 // --- NOVAS ROTAS DE GESTÃO (HISTÓRICO E DELETE) ---
 // ==========================================
 
-// 1. Listar TODOS os serviços (Histórico Geral)
 router.get('/servicos-geral', authMiddleware, async (req, res) => {
   try {
-    // Traz o nome do cliente junto com o serviço
     const servicos = await Servico.find().populate('clienteId', 'nome').sort({ data: -1 });
     res.json(servicos);
   } catch (err) {
@@ -323,7 +304,6 @@ router.get('/servicos-geral', authMiddleware, async (req, res) => {
   }
 });
 
-// 2. Deletar um Serviço (Caso tenha registrado errado)
 router.delete('/servicos/:id', authMiddleware, async (req, res) => {
   try {
     await Servico.findByIdAndDelete(req.params.id);
@@ -333,7 +313,6 @@ router.delete('/servicos/:id', authMiddleware, async (req, res) => {
   }
 });
 
-// 3. Listar TODAS as Consultorias enviadas
 router.get('/consultorias-geral', authMiddleware, async (req, res) => {
   try {
     const consultorias = await Consultoria.find().populate('clienteId', 'nome').sort({ data: -1 });
@@ -343,7 +322,6 @@ router.get('/consultorias-geral', authMiddleware, async (req, res) => {
   }
 });
 
-// 4. Deletar uma Consultoria
 router.delete('/consultorias/:id', authMiddleware, async (req, res) => {
   try {
     await Consultoria.findByIdAndDelete(req.params.id);
@@ -357,17 +335,15 @@ router.delete('/consultorias/:id', authMiddleware, async (req, res) => {
 // --- ROTA DE PERFIL (DADOS DO USUÁRIO) ---
 // ==========================================
 
-// 1. Pegar dados do usuário logado (Para mostrar no formulário)
 router.get('/perfil', authMiddleware, async (req, res) => {
   try {
-    const user = await User.findById(req.user.id).select('-senha'); // Traz tudo menos a senha
+    const user = await User.findById(req.user.id).select('-senha');
     res.json(user);
   } catch (err) {
     res.status(500).json({ error: "Erro ao buscar perfil." });
   }
 });
 
-// 2. Atualizar dados (Telefone e Senha)
 router.put('/perfil', authMiddleware, async (req, res) => {
   try {
     const { telefone, novaSenha } = req.body;
@@ -375,10 +351,8 @@ router.put('/perfil', authMiddleware, async (req, res) => {
 
     if (!user) return res.status(404).json({ error: "Usuário não encontrado" });
 
-    // Atualiza telefone se foi enviado
     if (telefone) user.telefone = telefone;
 
-    // Atualiza senha se foi enviada (Criptografa novamente)
     if (novaSenha && novaSenha.length >= 6) {
       const salt = await bcrypt.genSalt(10);
       user.senha = await bcrypt.hash(novaSenha, salt);
@@ -390,20 +364,16 @@ router.put('/perfil', authMiddleware, async (req, res) => {
     res.status(500).json({ error: "Erro ao atualizar perfil." });
   }
 });
+
 // ==========================================
 // --- ROTA DE RESET DE SENHA (PELO ADMIN) ---
 // ==========================================
 router.put('/admin/reset-senha/:id', authMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
-
-    // 1. Gera a nova senha padrão "123456"
     const salt = await bcrypt.genSalt(10);
     const novaSenhaHash = await bcrypt.hash("123456", salt);
-
-    // 2. Atualiza no banco
     await User.findByIdAndUpdate(id, { senha: novaSenhaHash });
-
     res.json({ msg: "✅ Senha resetada para '123456' com sucesso!" });
   } catch (err) {
     console.error(err);
