@@ -22,7 +22,6 @@ const PainelAdmin = () => {
 
   // --- ESTADOS DE CONTROLE ---
   const [aba, setAba] = useState('clientes');
-  const [baixandoId, setBaixandoId] = useState(null);
 
   // --- PESQUISA E FILTRO ---
   const [busca, setBusca] = useState('');
@@ -44,7 +43,6 @@ const PainelAdmin = () => {
       const resSoli = await api.get('/solicitacoes-geral');
       setSolicitacoes(resSoli.data);
 
-      // --- NOVAS CHAMADAS ---
       const resServicos = await api.get('/servicos-geral');
       setHistoricoServicos(resServicos.data);
 
@@ -80,28 +78,16 @@ const PainelAdmin = () => {
   });
 
   // --- AÇÕES ---
-  const baixarArquivo = async (url, nomeArquivo, idDoc) => {
+
+  // CORREÇÃO: Função simplificada para garantir que o arquivo abra
+  const baixarArquivo = (url) => {
     if (!url) return alert("Erro: Link não encontrado.");
-    setBaixandoId(idDoc);
-    try {
-      const urlSegura = url.replace('http://', 'https://');
-      const response = await fetch(urlSegura);
-      if (!response.ok) throw new Error('Falha ao buscar arquivo');
-      const blob = await response.blob();
-      const blobUrl = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = blobUrl;
-      link.download = nomeArquivo || 'documento_sesofa.pdf';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(blobUrl);
-    } catch (err) {
-      console.error("Erro no download:", err);
-      window.open(url.replace('http://', 'https://'), '_blank');
-    } finally {
-      setBaixandoId(null);
-    }
+
+    // Garante que o link seja HTTPS para evitar bloqueios
+    const urlSegura = url.replace('http://', 'https://');
+
+    // Abre em nova aba (o navegador gerencia o download ou visualização)
+    window.open(urlSegura, '_blank');
   };
 
   const mudarStatusDoc = async (id, novoStatus) => {
@@ -111,7 +97,6 @@ const PainelAdmin = () => {
     } catch (err) { alert("Erro ao atualizar status."); }
   };
 
-  // Função para Resetar Senha do Cliente (CORRIGIDA)
   const resetarSenha = async (id, nome) => {
     if (window.confirm(`Tem certeza que deseja resetar a senha de ${nome} para "123456"?`)) {
       try {
@@ -213,7 +198,6 @@ const PainelAdmin = () => {
                       <td style={tableCell}>
                         <button onClick={() => { setClienteSelecionado(c._id); setAba('financeiro'); }} style={{ cursor: 'pointer', color: 'blue', border: 'none', background: 'none', fontWeight: 'bold', marginRight: '10px' }}>Ver Dashboard</button>
                         <button onClick={() => deletarItem(c._id, 'cliente')} style={{ cursor: 'pointer', color: 'red', border: 'none', background: 'none' }}><Trash2 size={16} /></button>
-                        {/* --- BOTÃO DE RESETAR SENHA (CORRIGIDO: usa 'c' e não 'cliente') --- */}
                         <button
                           onClick={() => resetarSenha(c._id, c.nome)}
                           title="Resetar Senha para '123456'"
@@ -263,7 +247,6 @@ const PainelAdmin = () => {
               <button className="btn-gb" style={{ width: '100%' }}>Salvar Serviço</button>
             </form>
 
-            {/* TABELA DE HISTÓRICO DE SERVIÇOS */}
             <hr style={{ margin: '20px 0' }} />
             <h4 style={{ color: '#555' }}><History size={16} style={{ display: 'inline', marginRight: '5px' }} /> Histórico de Serviços Realizados</h4>
             <div style={{ overflowX: 'auto', maxHeight: '400px', overflowY: 'auto' }}>
@@ -285,7 +268,7 @@ const PainelAdmin = () => {
                       <td style={tableCell}>{serv.titulo}</td>
                       <td style={tableCell}>{serv.custo} CFA</td>
                       <td style={tableCell}>
-                        <button onClick={() => deletarItem(serv._id, 'servico')} title="Excluir (Em caso de erro)" style={{ border: 'none', background: 'transparent', color: 'red', cursor: 'pointer' }}><Trash2 size={16} /></button>
+                        <button onClick={() => deletarItem(serv._id, 'servico')} title="Excluir" style={{ border: 'none', background: 'transparent', color: 'red', cursor: 'pointer' }}><Trash2 size={16} /></button>
                       </td>
                     </tr>
                   ))}
@@ -308,7 +291,6 @@ const PainelAdmin = () => {
               <button className="btn-gb" style={{ width: '100%' }}>Enviar Mensagem</button>
             </form>
 
-            {/* TABELA DE HISTÓRICO DE CONSULTORIAS */}
             <hr style={{ margin: '20px 0' }} />
             <h4 style={{ color: '#555' }}><History size={16} style={{ display: 'inline', marginRight: '5px' }} /> Histórico de Mensagens Enviadas</h4>
             <div style={{ overflowX: 'auto', maxHeight: '400px', overflowY: 'auto' }}>
@@ -375,8 +357,12 @@ const PainelAdmin = () => {
                       <td style={tableCell}>{new Date(doc.dataEnvio || Date.now()).toLocaleDateString()}</td>
                       <td style={tableCell}>{doc.clienteId?.nome}</td>
                       <td style={tableCell}>
-                        <button onClick={() => baixarArquivo(doc.caminho, doc.nomeArquivo, doc._id)} disabled={baixandoId === doc._id} style={{ background: 'none', border: 'none', cursor: baixandoId === doc._id ? 'wait' : 'pointer', color: baixandoId === doc._id ? '#999' : '#007bff', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '5px' }}>
-                          <Download size={16} /> {baixandoId === doc._id ? "A Baixar..." : "Baixar PDF"}
+                        {/* BOTÃO DE DOWNLOAD SIMPLIFICADO */}
+                        <button
+                          onClick={() => baixarArquivo(doc.caminho)}
+                          style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#007bff', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '5px' }}
+                        >
+                          <Download size={16} /> Abrir/Baixar
                         </button>
                       </td>
                       <td style={tableCell}>
