@@ -5,24 +5,20 @@ const jwt = require('jsonwebtoken');
 
 // Importação dos Modelos
 const User = require('../models/User');
-const Financeiro = require('../models/Financeiro');
-const Consultoria = require('../models/Consultoria');
-const Documento = require('../models/Documento');
-const Servico = require('../models/Servico');
-const Solicitacao = require('../models/Solicitacao');
+// (Outros imports se houver, mantenha...)
 
-// Middleware de Proteção (Verifica se está logado)
+// Middleware de Proteção
 const authMiddleware = require('../middleware/authMiddleware');
 
 // ==========================================
 // --- ROTAS PÚBLICAS (Login e Cadastro) ---
 // ==========================================
 
-// Cadastro de Usuário
+// Cadastro de Usuário (BLINDADO: Cria apenas Clientes)
 router.post('/register', async (req, res) => {
   try {
     const { nome, email, telefone, senha } = req.body;
-    
+
     // Verifica se já existe
     const existe = await User.findOne({ email });
     if (existe) return res.status(400).json({ error: "E-mail já cadastrado." });
@@ -31,44 +27,57 @@ router.post('/register', async (req, res) => {
     const salt = await bcrypt.genSalt(10);
     const hashedSenha = await bcrypt.hash(senha, salt);
 
-    const novoUsuario = new User({ nome, email, telefone, senha: hashedSenha });
+    // --- SEGURANÇA MÁXIMA AQUI ---
+    // Forçamos o role ser 'cliente'. Ninguém pode se cadastrar como 'admin'.
+    const novoUsuario = new User({
+      nome,
+      email,
+      telefone,
+      senha: hashedSenha,
+      role: 'cliente'  // <--- ISSO GARANTE A SEGURANÇA DO CADASTRO
+    });
+
     await novoUsuario.save();
-    
-    res.status(201).json({ msg: "Usuário criado com sucesso!" });
+
+    res.status(201).json({ msg: "Usuário criado com sucesso! Faça login." });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error("Erro no registro:", err);
+    res.status(500).json({ error: "Erro no servidor ao registrar." });
   }
 });
 
-// Login
+// Login de Usuário (BLINDADO NO FRONTEND, FUNCIONAL AQUI)
 router.post('/login', async (req, res) => {
   try {
     const { email, senha } = req.body;
-    
-    // Busca usuário
+
+    // Verifica se usuário existe
     const user = await User.findOne({ email });
-    if (!user) return res.status(400).json({ error: "E-mail não encontrado." });
+    if (!user) return res.status(400).json({ error: "Usuário não encontrado." });
 
-    // Compara senha
-    const isMatch = await bcrypt.compare(senha, user.senha);
-    if (!isMatch) return res.status(400).json({ error: "Senha incorreta." });
+    // Verifica a senha
+    const senhaCorreta = await bcrypt.compare(senha, user.senha);
+    if (!senhaCorreta) return res.status(400).json({ error: "Senha incorreta." });
 
-    // Gera o Token de Acesso
-    const secret = process.env.JWT_SECRET || "SEGREDO_PADRAO_PROVISORIO";
-    
+    // Cria o Token (Crachá)
     const token = jwt.sign(
-      { id: user._id, role: user.role }, 
-      secret, 
+      { id: user._id, role: user.role }, // O token carrega o cargo verdadeiro
+      process.env.JWT_SECRET || 'segredo_padrao', // Use env em produção
       { expiresIn: '1d' }
     );
 
     res.json({
       token,
-      user: { id: user._id, nome: user.nome, role: user.role }
+      user: {
+        id: user._id,
+        nome: user.nome,
+        email: user.email,
+        role: user.role // Envia o cargo para o frontend verificar
+      }
     });
   } catch (err) {
     console.error("Erro no login:", err);
-    res.status(500).json({ error: "Erro no servidor" });
+    res.status(500).json({ error: "Erro no servidor." });
   }
 });
 
@@ -78,7 +87,7 @@ router.post('/forgot-password', async (req, res) => {
   try {
     const user = await User.findOne({ $or: [{ email: contato }, { telefone: contato }] });
     if (!user) return res.status(404).json({ error: "Usuário não encontrado." });
-    
+
     res.json({ msg: "Se os dados estiverem corretos, entraremos em contato." });
   } catch (err) {
     res.status(500).json({ error: "Erro no servidor" });
@@ -94,12 +103,12 @@ router.post('/lancamento', authMiddleware, async (req, res) => {
   try {
     const { clienteId, tipo, descricao, valor } = req.body;
     // Adicionamos a data atual automaticamente se não vier
-    const novoLancamento = new Financeiro({ 
-      clienteId, 
-      tipo, 
-      descricao, 
-      valor, 
-      data: new Date() 
+    const novoLancamento = new Financeiro({
+      clienteId,
+      tipo,
+      descricao,
+      valor,
+      data: new Date()
     });
     await novoLancamento.save();
     res.status(201).json({ msg: "Lançamento realizado!" });
@@ -134,12 +143,12 @@ router.get('/estatisticas/:clienteId', authMiddleware, async (req, res) => {
     const lancamentos = await Financeiro.find({ clienteId: req.params.clienteId });
     const receitas = lancamentos.filter(l => l.tipo === 'receita').reduce((acc, cur) => acc + cur.valor, 0);
     const despesas = lancamentos.filter(l => l.tipo === 'despesa').reduce((acc, cur) => acc + cur.valor, 0);
-    
-    res.json({ 
-      receitas, 
-      despesas, 
-      saldo: receitas - despesas, 
-      dadosGrafico: [{ name: 'Receitas', valor: receitas }, { name: 'Despesas', valor: despesas }] 
+
+    res.json({
+      receitas,
+      despesas,
+      saldo: receitas - despesas,
+      dadosGrafico: [{ name: 'Receitas', valor: receitas }, { name: 'Despesas', valor: despesas }]
     });
   } catch (err) {
     res.status(500).json({ error: "Erro ao gerar estatísticas" });
@@ -197,13 +206,13 @@ router.post('/enviar-consultoria', authMiddleware, async (req, res) => {
 router.post('/registrar-servico', authMiddleware, async (req, res) => {
   try {
     const { clienteId, titulo, descricao, custo } = req.body;
-    const novoServico = new Servico({ 
-      clienteId, 
-      titulo, 
-      descricao, 
+    const novoServico = new Servico({
+      clienteId,
+      titulo,
+      descricao,
       custo: Number(custo),
       dataRealizacao: new Date(),
-      data: new Date() 
+      data: new Date()
     });
     await novoServico.save();
     res.json({ msg: "✅ Serviço registrado no histórico do cliente!" });
@@ -292,7 +301,7 @@ router.delete('/clientes/:id', authMiddleware, async (req, res) => {
     await Consultoria.deleteMany({ clienteId: req.params.id });
     await Servico.deleteMany({ clienteId: req.params.id });
     await Solicitacao.deleteMany({ clienteId: req.params.id });
-    
+
     res.json({ msg: "Cliente e todos os seus dados removidos!" });
   } catch (err) {
     res.status(500).json({ error: "Erro ao deletar cliente." });
@@ -387,7 +396,7 @@ router.put('/perfil', authMiddleware, async (req, res) => {
 router.put('/admin/reset-senha/:id', authMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
-    
+
     // 1. Gera a nova senha padrão "123456"
     const salt = await bcrypt.genSalt(10);
     const novaSenhaHash = await bcrypt.hash("123456", salt);
