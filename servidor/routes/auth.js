@@ -3,7 +3,7 @@ const router = express.Router();
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 
-// Importação dos Modelos
+// --- IMPORTAÇÃO DE TODOS OS MODELOS (ESSENCIAL) ---
 const User = require('../models/User');
 const Financeiro = require('../models/Financeiro');
 const Consultoria = require('../models/Consultoria');
@@ -15,34 +15,30 @@ const Solicitacao = require('../models/Solicitacao');
 const authMiddleware = require('../middleware/authMiddleware');
 
 // ==========================================
-// --- ROTAS PÚBLICAS (Login e Cadastro) ---
+// --- ROTAS PÚBLICAS ---
 // ==========================================
 
-// Cadastro de Usuário (BLINDADO: Cria apenas Clientes)
+// Cadastro (Blindado: Cria apenas Clientes)
 router.post('/register', async (req, res) => {
   try {
     const { nome, email, telefone, senha } = req.body;
-    
-    // Verifica se já existe
+
     const existe = await User.findOne({ email });
     if (existe) return res.status(400).json({ error: "E-mail já cadastrado." });
 
-    // Criptografa a senha
     const salt = await bcrypt.genSalt(10);
     const hashedSenha = await bcrypt.hash(senha, salt);
 
-    // --- SEGURANÇA MÁXIMA AQUI ---
-    // Forçamos o role ser 'cliente'. Ninguém pode se cadastrar como 'admin'.
-    const novoUsuario = new User({ 
-      nome, 
-      email, 
-      telefone, 
+    const novoUsuario = new User({
+      nome,
+      email,
+      telefone,
       senha: hashedSenha,
-      role: 'cliente'  
+      role: 'cliente' // Força ser cliente
     });
 
     await novoUsuario.save();
-    
+
     res.status(201).json({ msg: "Usuário criado com sucesso! Faça login." });
   } catch (err) {
     console.error("Erro no registro:", err);
@@ -50,7 +46,7 @@ router.post('/register', async (req, res) => {
   }
 });
 
-// Login de Usuário
+// Login
 router.post('/login', async (req, res) => {
   try {
     const { email, senha } = req.body;
@@ -62,8 +58,8 @@ router.post('/login', async (req, res) => {
     if (!senhaCorreta) return res.status(400).json({ error: "Senha incorreta." });
 
     const token = jwt.sign(
-      { id: user._id, role: user.role }, 
-      process.env.JWT_SECRET || 'segredo_padrao', 
+      { id: user._id, role: user.role },
+      process.env.JWT_SECRET || 'segredo_padrao',
       { expiresIn: '1d' }
     );
 
@@ -73,7 +69,7 @@ router.post('/login', async (req, res) => {
         id: user._id,
         nome: user.nome,
         email: user.email,
-        role: user.role 
+        role: user.role
       }
     });
   } catch (err) {
@@ -292,7 +288,7 @@ router.delete('/clientes/:id', authMiddleware, async (req, res) => {
 });
 
 // ==========================================
-// --- NOVAS ROTAS DE GESTÃO (HISTÓRICO E DELETE) ---
+// --- NOVAS ROTAS DE GESTÃO ---
 // ==========================================
 
 router.get('/servicos-geral', authMiddleware, async (req, res) => {
@@ -332,7 +328,7 @@ router.delete('/consultorias/:id', authMiddleware, async (req, res) => {
 });
 
 // ==========================================
-// --- ROTA DE PERFIL (DADOS DO USUÁRIO) ---
+// --- ROTAS DE PERFIL ---
 // ==========================================
 
 router.get('/perfil', authMiddleware, async (req, res) => {
@@ -365,9 +361,6 @@ router.put('/perfil', authMiddleware, async (req, res) => {
   }
 });
 
-// ==========================================
-// --- ROTA DE RESET DE SENHA (PELO ADMIN) ---
-// ==========================================
 router.put('/admin/reset-senha/:id', authMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
