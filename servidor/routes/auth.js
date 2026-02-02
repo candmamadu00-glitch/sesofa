@@ -54,7 +54,6 @@ router.post('/login', async (req, res) => {
     if (!isMatch) return res.status(400).json({ error: "Senha incorreta." });
 
     // Gera o Token de Acesso
-    // ATENÇÃO: No .env, crie uma variável JWT_SECRET com uma senha longa e aleatória
     const secret = process.env.JWT_SECRET || "SEGREDO_PADRAO_PROVISORIO";
     
     const token = jwt.sign(
@@ -80,10 +79,70 @@ router.post('/forgot-password', async (req, res) => {
     const user = await User.findOne({ $or: [{ email: contato }, { telefone: contato }] });
     if (!user) return res.status(404).json({ error: "Usuário não encontrado." });
     
-    // Aqui futuramente você pode integrar um serviço de envio de E-mail/SMS
     res.json({ msg: "Se os dados estiverem corretos, entraremos em contato." });
   } catch (err) {
     res.status(500).json({ error: "Erro no servidor" });
+  }
+});
+
+// ==========================================
+// --- ROTAS FINANCEIRAS (ATUALIZADO PARA O GRÁFICO) ---
+// ==========================================
+
+// 1. Lançamento Financeiro (Salvar)
+router.post('/lancamento', authMiddleware, async (req, res) => {
+  try {
+    const { clienteId, tipo, descricao, valor } = req.body;
+    // Adicionamos a data atual automaticamente se não vier
+    const novoLancamento = new Financeiro({ 
+      clienteId, 
+      tipo, 
+      descricao, 
+      valor, 
+      data: new Date() 
+    });
+    await novoLancamento.save();
+    res.status(201).json({ msg: "Lançamento realizado!" });
+  } catch (err) {
+    res.status(500).json({ error: "Erro ao salvar lançamento" });
+  }
+});
+
+// 2. Buscar Extrato Completo (Para o Gráfico e Lista)
+router.get('/financeiro/:clienteId', authMiddleware, async (req, res) => {
+  try {
+    const lancamentos = await Financeiro.find({ clienteId: req.params.clienteId }).sort({ data: -1 });
+    res.json(lancamentos);
+  } catch (err) {
+    res.status(500).json({ error: "Erro ao buscar financeiro." });
+  }
+});
+
+// 3. Deletar Lançamento (Para corrigir erros)
+router.delete('/financeiro/:id', authMiddleware, async (req, res) => {
+  try {
+    await Financeiro.findByIdAndDelete(req.params.id);
+    res.json({ msg: "Lançamento removido!" });
+  } catch (err) {
+    res.status(500).json({ error: "Erro ao deletar." });
+  }
+});
+
+// Dashboard Antigo (Mantido para compatibilidade se necessário)
+router.get('/estatisticas/:clienteId', authMiddleware, async (req, res) => {
+  try {
+    const lancamentos = await Financeiro.find({ clienteId: req.params.clienteId });
+    const receitas = lancamentos.filter(l => l.tipo === 'receita').reduce((acc, cur) => acc + cur.valor, 0);
+    const despesas = lancamentos.filter(l => l.tipo === 'despesa').reduce((acc, cur) => acc + cur.valor, 0);
+    
+    res.json({ 
+      receitas, 
+      despesas, 
+      saldo: receitas - despesas, 
+      dadosGrafico: [{ name: 'Receitas', valor: receitas }, { name: 'Despesas', valor: despesas }] 
+    });
+  } catch (err) {
+    res.status(500).json({ error: "Erro ao gerar estatísticas" });
   }
 });
 
@@ -167,36 +226,6 @@ router.get('/solicitacoes-geral', authMiddleware, async (req, res) => {
 // --- ROTAS DO CLIENTE (Protegidas) ---
 // ==========================================
 
-// Lançamento Financeiro
-router.post('/lancamento', authMiddleware, async (req, res) => {
-  try {
-    const { clienteId, tipo, descricao, valor } = req.body;
-    const novoLancamento = new Financeiro({ clienteId, tipo, descricao, valor });
-    await novoLancamento.save();
-    res.status(201).json({ msg: "Lançamento realizado!" });
-  } catch (err) {
-    res.status(500).json({ error: "Erro ao salvar lançamento" });
-  }
-});
-
-// Dashboard (Estatísticas)
-router.get('/estatisticas/:clienteId', authMiddleware, async (req, res) => {
-  try {
-    const lancamentos = await Financeiro.find({ clienteId: req.params.clienteId });
-    const receitas = lancamentos.filter(l => l.tipo === 'receita').reduce((acc, cur) => acc + cur.valor, 0);
-    const despesas = lancamentos.filter(l => l.tipo === 'despesa').reduce((acc, cur) => acc + cur.valor, 0);
-    
-    res.json({ 
-      receitas, 
-      despesas, 
-      saldo: receitas - despesas, 
-      dadosGrafico: [{ name: 'Receitas', valor: receitas }, { name: 'Despesas', valor: despesas }] 
-    });
-  } catch (err) {
-    res.status(500).json({ error: "Erro ao gerar estatísticas" });
-  }
-});
-
 // Minhas Consultorias
 router.get('/minha-consultoria/:clienteId', authMiddleware, async (req, res) => {
   try {
@@ -269,6 +298,7 @@ router.delete('/clientes/:id', authMiddleware, async (req, res) => {
     res.status(500).json({ error: "Erro ao deletar cliente." });
   }
 });
+
 // ==========================================
 // --- NOVAS ROTAS DE GESTÃO (HISTÓRICO E DELETE) ---
 // ==========================================
@@ -313,4 +343,43 @@ router.delete('/consultorias/:id', authMiddleware, async (req, res) => {
     res.status(500).json({ error: "Erro ao deletar consultoria." });
   }
 });
+
+// ==========================================
+// --- ROTA DE PERFIL (DADOS DO USUÁRIO) ---
+// ==========================================
+
+// 1. Pegar dados do usuário logado (Para mostrar no formulário)
+router.get('/perfil', authMiddleware, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id).select('-senha'); // Traz tudo menos a senha
+    res.json(user);
+  } catch (err) {
+    res.status(500).json({ error: "Erro ao buscar perfil." });
+  }
+});
+
+// 2. Atualizar dados (Telefone e Senha)
+router.put('/perfil', authMiddleware, async (req, res) => {
+  try {
+    const { telefone, novaSenha } = req.body;
+    const user = await User.findById(req.user.id);
+
+    if (!user) return res.status(404).json({ error: "Usuário não encontrado" });
+
+    // Atualiza telefone se foi enviado
+    if (telefone) user.telefone = telefone;
+
+    // Atualiza senha se foi enviada (Criptografa novamente)
+    if (novaSenha && novaSenha.length >= 6) {
+      const salt = await bcrypt.genSalt(10);
+      user.senha = await bcrypt.hash(novaSenha, salt);
+    }
+
+    await user.save();
+    res.json({ msg: "✅ Perfil atualizado com sucesso!" });
+  } catch (err) {
+    res.status(500).json({ error: "Erro ao atualizar perfil." });
+  }
+});
+
 module.exports = router;

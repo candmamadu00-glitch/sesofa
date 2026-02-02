@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import api from '../api'; 
-import { MessageCircle, FileText, LayoutDashboard, LogOut, TrendingUp, Briefcase, History, Send } from 'lucide-react';
+import { MessageCircle, FileText, LayoutDashboard, LogOut, TrendingUp, Briefcase, History, Send, User, Lock, Save } from 'lucide-react';
 import RelatorioFinanceiro from '../components/RelatorioFinanceiro';
 
 const PainelCliente = () => {
@@ -21,12 +21,16 @@ const PainelCliente = () => {
   const [historico, setHistorico] = useState([]);
   const [meusDocumentos, setMeusDocumentos] = useState([]);
   const [solicitacao, setSolicitacao] = useState({ servicoDesejado: '', detalhes: '' });
+  
+  // Estado do Perfil
+  const [perfil, setPerfil] = useState({ nome: '', email: '', telefone: '', novaSenha: '' });
+
   const [loading, setLoading] = useState(false);
   
   const userName = localStorage.getItem('userName');
   const userId = localStorage.getItem('userId');
 
-  // --- BUSCAR DADOS ---
+  // --- BUSCAR DADOS GERAIS ---
   useEffect(() => {
     const carregarDadosCliente = async () => {
       if (!userId) return;
@@ -43,6 +47,15 @@ const PainelCliente = () => {
     };
     carregarDadosCliente();
   }, [userId]);
+
+  // --- BUSCAR DADOS DE PERFIL (QUANDO ENTRA NA ABA) ---
+  useEffect(() => {
+    if (abaAtiva === 'perfil') {
+      api.get('/perfil')
+        .then(res => setPerfil({ ...res.data, novaSenha: '' })) // Carrega dados mas deixa senha vazia
+        .catch(err => console.error("Erro ao carregar perfil", err));
+    }
+  }, [abaAtiva]);
 
   // --- FUNÇÕES DE AÇÃO ---
   const handleLancamento = async (e) => {
@@ -63,6 +76,21 @@ const PainelCliente = () => {
       setSolicitacao({ servicoDesejado: '', detalhes: '' });
       setAbaAtiva('resumo');
     } catch (err) { alert("❌ Falha ao enviar solicitação."); }
+  };
+
+  const atualizarPerfil = async (e) => {
+    e.preventDefault();
+    if (perfil.novaSenha && perfil.novaSenha.length < 6) {
+      return alert("A nova senha deve ter pelo menos 6 dígitos.");
+    }
+    
+    try {
+      await api.put('/perfil', { telefone: perfil.telefone, novaSenha: perfil.novaSenha });
+      alert("✅ Dados atualizados com sucesso!");
+      setPerfil({ ...perfil, novaSenha: '' }); // Limpa o campo de senha
+    } catch (err) {
+      alert("Erro ao atualizar perfil.");
+    }
   };
 
   const handleUpload = async () => {
@@ -141,25 +169,25 @@ const PainelCliente = () => {
         
         <nav style={navScrollStyle} className="hide-scrollbar">
           <div onClick={() => setAbaAtiva('resumo')} style={itemMenuStyle(abaAtiva === 'resumo')}>
-            <LayoutDashboard size={20} /> {isMobile ? "Início" : "Painel de Gestão"}
+            <LayoutDashboard size={20} /> {isMobile ? "Início" : "Painel"}
           </div>
           <div onClick={() => setAbaAtiva('financeiro')} style={itemMenuStyle(abaAtiva === 'financeiro')}>
-            <TrendingUp size={20} /> {isMobile ? "Lançar" : "Lançar Vendas/Gastos"}
+            <TrendingUp size={20} /> {isMobile ? "Lançar" : "Lançar"}
           </div>
           <div onClick={() => setAbaAtiva('solicitar')} style={itemMenuStyle(abaAtiva === 'solicitar')}>
-            <Send size={20} /> {isMobile ? "Pedir" : "Solicitar Serviço"}
+            <Send size={20} /> {isMobile ? "Pedir" : "Solicitar"}
           </div>
           <div onClick={() => setAbaAtiva('servicos')} style={itemMenuStyle(abaAtiva === 'servicos')}>
-            <History size={20} /> {isMobile ? "Histórico" : "Meus Serviços"}
-          </div>
-          <div onClick={() => setAbaAtiva('consultoria')} style={itemMenuStyle(abaAtiva === 'consultoria')}>
-            <Briefcase size={20} /> {isMobile ? "Dicas" : "Orientações SESOFA"}
+            <History size={20} /> {isMobile ? "Histórico" : "Serviços"}
           </div>
           <div onClick={() => setAbaAtiva('documentos')} style={itemMenuStyle(abaAtiva === 'documentos')}>
-            <FileText size={20} /> {isMobile ? "Docs" : "Documentos e NIF"}
+            <FileText size={20} /> {isMobile ? "Docs" : "Documentos"}
+          </div>
+          <div onClick={() => setAbaAtiva('perfil')} style={itemMenuStyle(abaAtiva === 'perfil')}>
+            <User size={20} /> {isMobile ? "Perfil" : "Meu Perfil"}
           </div>
           <div onClick={() => setAbaAtiva('suporte')} style={itemMenuStyle(abaAtiva === 'suporte')}>
-            <MessageCircle size={20} /> {isMobile ? "Suporte" : "Falar com Consultor"}
+            <MessageCircle size={20} /> {isMobile ? "Ajuda" : "Suporte"}
           </div>
           
           <div onClick={() => { localStorage.clear(); window.location.href='/'; }} style={{ ...itemMenuStyle(false), color: '#ff4d4d', marginTop: isMobile ? '0' : '30px', border: isMobile ? '1px solid #ff4d4d' : 'none' }}>
@@ -178,7 +206,71 @@ const PainelCliente = () => {
               <p>Confira a saúde financeira do seu negócio em tempo real (Valores em CFA).</p>
             </div>
             <RelatorioFinanceiro clienteId={userId} />
+            
+            {/* Exibir Dicas Recentes no Resumo */}
+            {dicas.length > 0 && (
+                <div style={{marginTop: '20px'}}>
+                    <h3 style={{color: '#555'}}>🔔 Avisos Recentes</h3>
+                    {dicas.slice(0, 1).map(d => (
+                         <div key={d._id} style={cardDicaStyle}>
+                         <h4 style={{ color: 'var(--gb-green)', margin: 0 }}>{d.titulo}</h4>
+                         <p style={{ marginTop: '5px', color: '#444' }}>{d.mensagem}</p>
+                       </div>
+                    ))}
+                </div>
+            )}
           </>
+        )}
+
+        {/* --- ABA MEU PERFIL (NOVO) --- */}
+        {abaAtiva === 'perfil' && (
+          <div style={{ background: 'white', padding: '30px', borderRadius: '15px', boxShadow: '0 4px 10px rgba(0,0,0,0.1)' }}>
+            <h2 style={{ color: 'var(--gb-green)', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <User size={28}/> Meus Dados
+            </h2>
+            <form onSubmit={atualizarPerfil}>
+              <div style={{ marginBottom: '15px' }}>
+                <label style={{fontWeight: 'bold', display: 'block', marginBottom: '5px'}}>Nome da Empresa (Fixo)</label>
+                <input type="text" value={perfil.nome} disabled style={{...inputStyle, background: '#e9ecef', color: '#666'}} />
+              </div>
+              
+              <div style={{ marginBottom: '15px' }}>
+                <label style={{fontWeight: 'bold', display: 'block', marginBottom: '5px'}}>E-mail (Login)</label>
+                <input type="text" value={perfil.email} disabled style={{...inputStyle, background: '#e9ecef', color: '#666'}} />
+              </div>
+
+              <div style={{ marginBottom: '15px' }}>
+                <label style={{fontWeight: 'bold', display: 'block', marginBottom: '5px'}}>Telefone / WhatsApp</label>
+                <input 
+                  type="text" 
+                  value={perfil.telefone} 
+                  onChange={(e) => setPerfil({...perfil, telefone: e.target.value})} 
+                  style={inputStyle} 
+                />
+              </div>
+
+              <hr style={{margin: '25px 0'}} />
+
+              <div style={{ marginBottom: '20px' }}>
+                <label style={{fontWeight: 'bold', display: 'block', marginBottom: '5px', color: 'var(--gb-red)'}}>
+                  <Lock size={16} style={{display:'inline', marginRight: '5px'}}/> 
+                  Trocar Senha (Opcional)
+                </label>
+                <input 
+                  type="password" 
+                  placeholder="Digite a nova senha aqui..." 
+                  value={perfil.novaSenha} 
+                  onChange={(e) => setPerfil({...perfil, novaSenha: e.target.value})} 
+                  style={{...inputStyle, border: '1px solid var(--gb-red)'}} 
+                />
+                <small style={{color: '#777'}}>Deixe em branco se não quiser mudar a senha.</small>
+              </div>
+
+              <button type="submit" className="btn-gb" style={{ width: '100%', fontWeight: 'bold', display:'flex', justifyContent:'center', gap:'10px' }}>
+                <Save size={18}/> SALVAR ALTERAÇÕES
+              </button>
+            </form>
+          </div>
         )}
 
         {abaAtiva === 'solicitar' && (
@@ -201,8 +293,6 @@ const PainelCliente = () => {
         {abaAtiva === 'servicos' && (
           <div style={{ background: 'white', padding: '30px', borderRadius: '15px', boxShadow: '0 4px 10px rgba(0,0,0,0.1)' }}>
             <h2 style={{ color: 'var(--gb-green)', marginBottom: '20px' }}>📜 Histórico de Serviços</h2>
-            
-            {/* TABELA COM SCROLL HORIZONTAL */}
             <div style={{ overflowX: 'auto' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '600px' }}>
                 <thead>
@@ -266,10 +356,8 @@ const PainelCliente = () => {
           </div>
         )}
 
-        {/* --- ABA DOCUMENTOS --- */}
         {abaAtiva === 'documentos' && (
           <div style={{ background: 'white', padding: '30px', borderRadius: '15px', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }}>
-            
             <h2 style={{ color: 'var(--gb-green)' }}>📤 Enviar Novo Documento</h2>
             <p>Selecione o arquivo para contabilização.</p>
             <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: '10px', alignItems: 'center', margin: '20px 0' }}>
@@ -283,12 +371,8 @@ const PainelCliente = () => {
                 {loading ? "A ENVIAR..." : "ENVIAR AGORA"} 
               </button>
             </div>
-
             <hr style={{ margin: '30px 0', border: '0', borderTop: '1px solid #eee' }} />
-
             <h3 style={{ color: '#555' }}>📂 Histórico de Envios</h3>
-            
-            {/* TABELA COM SCROLL HORIZONTAL */}
             <div style={{ overflowX: 'auto' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: '15px', minWidth: '500px' }}>
                 <thead>
