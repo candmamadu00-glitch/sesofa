@@ -269,5 +269,48 @@ router.delete('/clientes/:id', authMiddleware, async (req, res) => {
     res.status(500).json({ error: "Erro ao deletar cliente." });
   }
 });
+// ==========================================
+// --- NOVAS ROTAS DE GESTÃO (HISTÓRICO E DELETE) ---
+// ==========================================
 
+// 1. Listar TODOS os serviços (Histórico Geral)
+router.get('/servicos-geral', authMiddleware, async (req, res) => {
+  try {
+    // Traz o nome do cliente junto com o serviço
+    const servicos = await Servico.find().populate('clienteId', 'nome').sort({ data: -1 });
+    res.json(servicos);
+  } catch (err) {
+    res.status(500).json({ error: "Erro ao buscar histórico de serviços" });
+  }
+});
+
+// 2. Deletar um Serviço (Caso tenha registrado errado)
+router.delete('/servicos/:id', authMiddleware, async (req, res) => {
+  try {
+    await Servico.findByIdAndDelete(req.params.id);
+    res.json({ msg: "Serviço removido do histórico!" });
+  } catch (err) {
+    res.status(500).json({ error: "Erro ao deletar serviço." });
+  }
+});
+
+// 3. Listar TODAS as Consultorias enviadas
+router.get('/consultorias-geral', authMiddleware, async (req, res) => {
+  try {
+    const consultorias = await Consultoria.find().populate('clienteId', 'nome').sort({ data: -1 });
+    res.json(consultorias);
+  } catch (err) {
+    res.status(500).json({ error: "Erro ao buscar histórico de consultorias" });
+  }
+});
+
+// 4. Deletar uma Consultoria
+router.delete('/consultorias/:id', authMiddleware, async (req, res) => {
+  try {
+    await Consultoria.findByIdAndDelete(req.params.id);
+    res.json({ msg: "Consultoria removida!" });
+  } catch (err) {
+    res.status(500).json({ error: "Erro ao deletar consultoria." });
+  }
+});
 module.exports = router;
