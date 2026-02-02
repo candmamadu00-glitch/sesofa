@@ -73,12 +73,11 @@ const PainelAdmin = () => {
     let urlFinal = url.replace('http://', 'https://');
 
     // 2. Truque do Cloudinary: Adiciona 'fl_attachment' para FORÇAR o download
-    // Isso evita que o navegador tente abrir e falhe com arquivos RAW
     if (urlFinal.includes('/upload/')) {
       urlFinal = urlFinal.replace('/upload/', '/upload/fl_attachment/');
     }
 
-    // Abre o link direto de download
+    // Abre o link direto de download na mesma aba (dispara o download)
     window.open(urlFinal, '_self');
   };
 
