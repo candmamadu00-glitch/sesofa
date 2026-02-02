@@ -65,7 +65,7 @@ const Selecao = () => {
       </div>
 
       <div style={{ marginTop: '60px' }}>
-        <p style={{ fontSize: '12px', color: '#999' }}>Sistema Seguro - Mamadu's Projects © 2026</p>
+        <p style={{ fontSize: '12px', color: '#999' }}>Sistema Seguro - Mamadu Projects © 2026</p>
       </div>
 
     </div>

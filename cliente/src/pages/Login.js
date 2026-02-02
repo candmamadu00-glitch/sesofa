@@ -9,7 +9,6 @@ const Login = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Verifica se o usuário clicou em "SOU GESTOR" na tela anterior
   const isAdminPortal = location.state?.portal === 'admin';
 
   const handleLogin = async (e) => {
@@ -17,29 +16,24 @@ const Login = () => {
     setLoading(true);
 
     try {
-      const res = await api.post('/auth/login', { email, senha });
+      // CORREÇÃO AQUI: Removemos o "/auth" pois o api.js já tem ele
+      const res = await api.post('/login', { email, senha });
       const user = res.data.user;
 
-      // --- 🔒 BLOQUEIO DE SEGURANÇA (NOVO) ---
-      // Se está no Portal Admin, mas o usuário NÃO é admin: BLOQUEIA.
       if (isAdminPortal && user.role !== 'admin') {
         alert("⛔ ACESSO NEGADO!\n\nVocê é um Cliente, não pode acessar o Painel de Gestão.\nPor favor, use o Portal do Cliente.");
         setLoading(false);
-        return; // Para o código aqui. Não deixa salvar token.
+        return;
       }
-      // ----------------------------------------
 
-      // Se passou pela segurança, salva os dados
       localStorage.setItem('token', res.data.token);
       localStorage.setItem('userId', user.id);
       localStorage.setItem('userName', user.nome);
       localStorage.setItem('userRole', user.role);
 
-      // Redirecionamento Correto
       if (user.role === 'admin') {
         navigate('/painel-admin');
       } else {
-        // Se for cliente, manda para o painel de cliente (mesmo que tente logar pelo admin, mas agora o bloco acima impede isso)
         navigate('/painel-cliente');
       }
 
@@ -51,12 +45,10 @@ const Login = () => {
     }
   };
 
-  // Cores Baseadas no Portal (Vermelho para Admin / Verde para Cliente)
   const themeColor = isAdminPortal ? '#CE1126' : '#009E49';
 
   return (
     <div style={{ display: 'flex', height: '100vh', background: '#000' }}>
-      {/* Faixas da Bandeira */}
       <div style={{ width: '20px', background: '#CE1126' }}></div>
       <div style={{ width: '20px', background: '#FCD116' }}></div>
       <div style={{ width: '20px', background: '#009E49' }}></div>
