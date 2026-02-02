@@ -110,7 +110,20 @@ const PainelAdmin = () => {
       carregarDados(); 
     } catch (err) { alert("Erro ao atualizar status."); }
   };
-
+// Função para Resetar Senha do Cliente
+  const resetarSenha = async (id, nome) => {
+    if (window.confirm(`Tem certeza que deseja resetar a senha de ${nome} para "123456"?`)) {
+      try {
+        const token = localStorage.getItem('token');
+        await api.put(`/auth/admin/reset-senha/${id}`, {}, {
+          headers: { 'x-auth-token': token }
+        });
+        alert(`✅ Sucesso! A senha de ${nome} agora é: 123456`);
+      } catch (err) {
+        alert("Erro ao resetar senha.");
+      }
+    }
+  };
   const deletarItem = async (id, tipo) => {
     const confirmacao = window.confirm(`Tem certeza que deseja EXCLUIR este item? Essa ação não pode ser desfeita.`);
     if (!confirmacao) return;
@@ -198,6 +211,14 @@ const PainelAdmin = () => {
                       <td style={tableCell}>
                         <button onClick={() => { setClienteSelecionado(c._id); setAba('financeiro'); }} style={{ cursor: 'pointer', color: 'blue', border:'none', background:'none', fontWeight:'bold', marginRight: '10px' }}>Ver Dashboard</button>
                         <button onClick={() => deletarItem(c._id, 'cliente')} style={{ cursor: 'pointer', color: 'red', border:'none', background:'none' }}><Trash2 size={16}/></button>
+                        {/* --- BOTÃO DE RESETAR SENHA --- */}
+<button 
+  onClick={() => resetarSenha(cliente._id, cliente.nome)} 
+  title="Resetar Senha para '123456'"
+  style={{border:'none', background:'#FF9800', color:'white', borderRadius:'5px', padding:'5px', cursor:'pointer', marginRight:'5px'}}
+>
+  🔑
+</button>
                       </td>
                     </tr>
                   ))}
