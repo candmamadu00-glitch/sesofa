@@ -1,0 +1,8 @@
+# Ignorar pastas pesadas e arquivos de sistema
+node_modules/
+.DS_Store
+Thumbs.db
+
+# Ignorar arquivos de segurança (CRÍTICO)
+.env
+servidor/.env

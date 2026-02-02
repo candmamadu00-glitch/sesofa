@@ -1,0 +1,46 @@
+:root {
+  --gb-red: #CE1126;
+  --gb-yellow: #FCD116;
+  --gb-green: #009E49;
+  --gb-black: #1a1a1a;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  padding: 0;
+  font-family: 'Inter', sans-serif;
+  background-color: #f8f9fa;
+}
+
+/* Estilo para inputs em celulares */
+input {
+  width: 100%;
+  padding: 14px;
+  margin: 8px 0;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  font-size: 16px; /* Evita o zoom chato do iPhone */
+}
+
+/* Botão com as cores da Guiné-Bissau */
+.btn-gb {
+  background: linear-gradient(90deg, var(--gb-red), var(--gb-green));
+  color: white;
+  border: none;
+  padding: 15px;
+  border-radius: 8px;
+  font-weight: bold;
+  cursor: pointer;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+/* Painel Organizado */
+.card {
+  background: white;
+  padding: 20px;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+}

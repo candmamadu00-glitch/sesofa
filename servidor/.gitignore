@@ -1,0 +1,12 @@
+# Ignorar as pastas pesadas do Node
+node_modules/
+
+# Ignorar arquivos de segurança (NUNCA SUBIR ISSO)
+.env
+
+# Ignorar arquivos de sistema operacional
+.DS_Store
+Thumbs.db
+
+# Ignorar logs de erro
+npm-debug.log

@@ -1,0 +1,70 @@
+:root {
+  --gb-red: #CE1126;    /* Vermelho da bandeira */
+  --gb-yellow: #FCD116; /* Amarelo da bandeira */
+  --gb-green: #009E49;  /* Verde da bandeira */
+  --gb-black: #000000;  /* Estrela Preta */
+  --bg-light: #f4f4f4;
+}
+
+body {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background-color: var(--bg-light);
+}
+/* Container principal para centralizar tudo */
+.main-container {
+  padding: 20px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+/* Ajustes para Celular */
+@media (max-width: 768px) {
+  input {
+    font-size: 16px; /* Evita zoom automático no iPhone */
+  }
+  
+  .side-menu {
+    display: none; /* Esconde menu lateral no celular por enquanto */
+  }
+  
+  table {
+    display: block;
+    overflow-x: auto; /* Permite rolar a tabela de clientes para o lado */
+  }
+}
+
+/* Estilo dos inputs para parecer profissional */
+input {
+  border: 2px solid #ddd;
+  padding: 12px;
+  border-radius: 8px;
+  outline: none;
+  transition: 0.3s;
+}
+
+input:focus {
+  border-color: var(--gb-green);
+}
+/* Botão Estrela Preta (Identidade Guiné-Bissau) */
+.btn-admin {
+  background-color: var(--gb-black);
+  color: var(--gb-yellow);
+  border: 2px solid var(--gb-yellow);
+  padding: 10px 20px;
+  border-radius: 5px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: 0.3s;
+}
+
+.btn-admin:hover {
+  background-color: var(--gb-red);
+  color: white;
+}
+
+/* Tabela Responsiva para Celular */
+.tabela-container {
+  overflow-x: auto;
+  border-radius: 10px;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+}
