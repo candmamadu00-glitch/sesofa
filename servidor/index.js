@@ -10,15 +10,18 @@ const authRoutes = require('./routes/auth');
 
 const app = express();
 
+// 1. AUMENTO DE LIMITE
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
+// 2. SEGURANÇA CORS
 app.use(cors({
   origin: process.env.FRONTEND_URL || '*',
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
   allowedHeaders: ['Content-Type', 'x-auth-token']
 }));
 
+// 3. CONFIGURAÇÃO DO CLOUDINARY
 const cloudName = process.env.CLOUDINARY_CLOUD_NAME ? process.env.CLOUDINARY_CLOUD_NAME.trim() : "";
 const apiKey = process.env.CLOUDINARY_API_KEY ? process.env.CLOUDINARY_API_KEY.trim() : "";
 const apiSecret = process.env.CLOUDINARY_API_SECRET ? process.env.CLOUDINARY_API_SECRET.trim() : "";
@@ -29,24 +32,29 @@ cloudinary.config({
   api_secret: apiSecret
 });
 
+// 4. STORAGE INTELIGENTE (CORRIGIDO PARA NOMES LIMPOS)
 const storage = new CloudinaryStorage({
   cloudinary: cloudinary,
   params: async (req, file) => {
-    // --- CORREÇÃO DE NOME ---
-    // Remove espaços e parenteses para evitar erro no navegador
+    // --- AQUI ESTÁ A CORREÇÃO MÁGICA ---
+    // Removemos espaços, parênteses e acentos. Deixamos apenas letras e números.
+    // Exemplo: "Fatura (1).pdf" vira "Fatura_1"
     const nomeLimpo = file.originalname.split('.')[0].replace(/[^a-zA-Z0-9]/g, '_');
-    
+
+    const isPdf = file.mimetype === 'application/pdf';
+
     return {
       folder: 'sesofa_documentos',
-      resource_type: 'auto', 
-      public_id: nomeLimpo + '-' + Date.now(), 
-      format: file.mimetype === 'application/pdf' ? 'pdf' : 'png',
+      resource_type: isPdf ? 'raw' : 'image', // PDFs como 'raw' evitam corrupção
+      public_id: nomeLimpo + '-' + Date.now(), // Nome limpo + data para não repetir
+      format: isPdf ? 'pdf' : 'png',
     };
   },
 });
 
 const uploadMiddleware = multer({ storage: storage }).single('arquivo');
 
+// 5. ROTA DE UPLOAD
 app.post('/api/auth/upload', (req, res) => {
   uploadMiddleware(req, res, async (err) => {
     if (err) {
@@ -59,8 +67,8 @@ app.post('/api/auth/upload', (req, res) => {
       const { clienteId, tipoDoc } = req.body;
       const novoDoc = new Documento({
         clienteId,
-        nomeArquivo: req.file.originalname, // Mantém o nome original para visualização
-        caminho: req.file.path, 
+        nomeArquivo: req.file.originalname, // Mantemos o nome original VISUALMENTE para o usuário
+        caminho: req.file.path, // Mas o link salvo será o "limpo" do Cloudinary
         tipoDoc: tipoDoc || 'Recibo/Fatura',
         status: 'Pendente'
       });
@@ -74,14 +82,16 @@ app.post('/api/auth/upload', (req, res) => {
   });
 });
 
+// 6. ROTAS
 app.use('/api/auth', authRoutes);
 
+// 7. INICIALIZAÇÃO
 const PORT = process.env.PORT || 5000;
-const MONGO_URI = process.env.MONGO_URI;
-
-mongoose.connect(MONGO_URI)
+mongoose.connect(process.env.MONGO_URI)
   .then(() => {
-    console.log('✅ MongoDB Conectado!');
-    app.listen(PORT, () => console.log(`🚀 Servidor rodando na porta ${PORT}`));
+    console.log("✅ MongoDB Conectado");
+    app.listen(PORT, () => console.log(`🚀 Servidor online na porta ${PORT}`));
   })
-  .catch(err => console.error('❌ Erro no MongoDB:', err));
+  .catch(err => {
+    console.error("❌ Erro fatal no Banco:", err);
+  });
