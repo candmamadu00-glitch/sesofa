@@ -393,7 +393,7 @@ router.put('/admin/reset-senha/:id', authMiddleware, async (req, res) => {
 });
 
 // Rota para buscar os logs (admin)
-router.get('/admin/logs', async (req, res) => {
+router.get('/admin/logs', authMiddleware, async (req, res) => {
   try {
     // Busca os últimos 50 acessos, do mais recente para o mais antigo
     const logs = await AccessLog.find().sort({ data: -1 }).limit(50);

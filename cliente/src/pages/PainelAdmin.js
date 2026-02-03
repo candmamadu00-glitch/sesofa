@@ -1,7 +1,9 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import api from '../api';
-import { Users, FileText, LogOut, CheckCircle, PlusCircle, Bell, Download, XCircle, Briefcase, Search, Trash2, Calendar, DollarSign, User, Lock } from 'lucide-react';
+// Adicionei 'Activity' e 'Clock' na importação de ícones
+import { Users, FileText, LogOut, CheckCircle, PlusCircle, Bell, Download, XCircle, Briefcase, Search, Trash2, Calendar, DollarSign, User, Lock, Clock, Activity } from 'lucide-react';
 import RelatorioFinanceiro from '../components/RelatorioFinanceiro';
+import HistoricoAcessos from '../components/HistoricoAcessos'; // Importação do componente
 
 const PainelAdmin = () => {
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
@@ -196,6 +198,9 @@ const PainelAdmin = () => {
           <div onClick={() => mudarAba('registrar_os')} style={getItemStyle(aba === 'registrar_os')}><PlusCircle size={18} /> Novo Serviço</div>
           <div onClick={() => mudarAba('consultoria')} style={getItemStyle(aba === 'consultoria')}><Briefcase size={18} /> Consultoria</div>
           <div onClick={() => mudarAba('documentos')} style={getItemStyle(aba === 'documentos')}><FileText size={18} /> Analisar Docs</div>
+          {/* NOVA ABA DE HISTÓRICO NO MENU */}
+          <div onClick={() => mudarAba('logs')} style={getItemStyle(aba === 'logs')}><Activity size={18} /> Histórico Acessos</div>
+          
           <div onClick={() => { localStorage.clear(); window.location.href = '/'; }} style={{ ...getItemStyle(false), color: '#ff4d4d', marginTop: isMobile ? '0' : '30px', borderTop: '1px solid #333' }}><LogOut size={18} /> Sair</div>
         </nav>
       </div>
@@ -360,6 +365,13 @@ const PainelAdmin = () => {
                 </div>
             )}
           </div>
+        )}
+
+        {/* --- NOVA ABA DE LOGS --- */}
+        {aba === 'logs' && (
+             <div style={cardStyle}>
+                 <HistoricoAcessos />
+             </div>
         )}
       </div>
       
