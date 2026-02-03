@@ -26,7 +26,6 @@ const PainelAdmin = () => {
   const [servicoForm, setServicoForm] = useState({ clienteId: '', titulo: '', descricao: '', custo: '' });
   const [clienteSelecionado, setClienteSelecionado] = useState(null);
 
-  // Estado para mostrar loading no botão de download específico
   const [baixandoId, setBaixandoId] = useState(null);
 
   const carregarDados = useCallback(async () => {
@@ -68,37 +67,43 @@ const PainelAdmin = () => {
     return correspondeBusca && correspondeStatus;
   });
 
-  // --- FUNÇÃO DE DOWNLOAD FORÇADO (BLOB) ---
+  // --- CORREÇÃO FINAL DO DOWNLOAD ---
   const baixarArquivo = async (url, nomeArquivo, docId) => {
     if (!url) return alert("Erro: Link não encontrado.");
     
-    // Troca http por https para evitar bloqueio de segurança mista
     const secureUrl = url.replace('http://', 'https://');
-    
-    setBaixandoId(docId); // Ativa o "Carregando..." no botão
+    setBaixandoId(docId);
 
     try {
-      // Passo 1: O javascript vai lá buscar o arquivo
       const response = await fetch(secureUrl);
       if (!response.ok) throw new Error("Erro ao acessar o arquivo");
       
       const blob = await response.blob();
       
-      // Passo 2: Cria um link fantasma na memória do navegador
-      const downloadUrl = window.URL.createObjectURL(blob);
+      // 1. FORÇA O TIPO PDF (Diz pro navegador: "Isso é um PDF, não texto!")
+      const pdfBlob = new Blob([blob], { type: 'application/pdf' });
+      
+      const downloadUrl = window.URL.createObjectURL(pdfBlob);
       const link = document.createElement('a');
       link.href = downloadUrl;
-      link.download = nomeArquivo || 'documento-sesofa.pdf'; // Força o nome do arquivo
+
+      // 2. FORÇA A EXTENSÃO .PDF NO NOME
+      // Se o nome não tiver .pdf no final, a gente adiciona na marra.
+      let nomeFinal = nomeArquivo || 'documento.pdf';
+      if (!nomeFinal.toLowerCase().endsWith('.pdf')) {
+          nomeFinal += '.pdf';
+      }
+
+      link.download = nomeFinal; 
       
-      // Passo 3: Clica no link automaticamente e baixa
       document.body.appendChild(link);
       link.click();
       link.remove();
       window.URL.revokeObjectURL(downloadUrl);
 
     } catch (error) {
-      console.error("Erro no download direto:", error);
-      // Plano B: Se tudo der errado, abre em nova aba
+      console.error("Erro no download:", error);
+      alert("Erro ao baixar. Tentando abrir em nova aba...");
       window.open(secureUrl, '_blank');
     } finally {
       setBaixandoId(null);
