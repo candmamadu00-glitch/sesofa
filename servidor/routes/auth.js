@@ -3,7 +3,7 @@ const router = express.Router();
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 
-// --- IMPORTAÇÃO DE TODOS OS MODELOS (ESSENCIAL) ---
+// --- IMPORTAÇÃO DOS MODELOS ---
 const User = require('../models/User');
 const Financeiro = require('../models/Financeiro');
 const Consultoria = require('../models/Consultoria');
@@ -11,19 +11,8 @@ const Documento = require('../models/Documento');
 const Servico = require('../models/Servico');
 const Solicitacao = require('../models/Solicitacao');
 const AccessLog = require('../models/AccessLog');
-const authMiddleware = require('../middleware/authMiddleware');
-// Detectar dispositivo simples (opcional)
-const userAgent = req.headers['user-agent'];
-const dispositivo = userAgent.includes('Android') ? 'Android' : 
-                    userAgent.includes('iPhone') ? 'iPhone' : 'Computador';
+const authMiddleware = require('../middleware/authMiddleware'); // Certifique-se que o arquivo existe nesta pasta
 
-// SALVAR O LOG
-await AccessLog.create({
-  usuarioId: user._id,
-  nome: user.nome,
-  email: user.email,
-  dispositivo: dispositivo
-});
 // ==========================================
 // --- ROTAS PÚBLICAS ---
 // ==========================================
@@ -56,7 +45,7 @@ router.post('/register', async (req, res) => {
   }
 });
 
-// Login
+// Login (COM O LOG DE ACESSO CORRIGIDO AQUI DENTRO)
 router.post('/login', async (req, res) => {
   try {
     const { email, senha } = req.body;
@@ -66,6 +55,25 @@ router.post('/login', async (req, res) => {
 
     const senhaCorreta = await bcrypt.compare(senha, user.senha);
     if (!senhaCorreta) return res.status(400).json({ error: "Senha incorreta." });
+
+    // --- INÍCIO: LOGICA DE LOG DE ACESSO ---
+    try {
+        const userAgent = req.headers['user-agent'] || '';
+        const dispositivo = userAgent.includes('Android') ? 'Android' : 
+                            userAgent.includes('iPhone') ? 'iPhone' : 'Computador';
+
+        await AccessLog.create({
+            usuarioId: user._id, // Certifique-se que seu Model usa 'usuarioId' ou 'userId'
+            nome: user.nome,
+            email: user.email,
+            dispositivo: dispositivo,
+            data: new Date()
+        });
+        console.log(`[LOG] Login efetuado: ${user.email} via ${dispositivo}`);
+    } catch (logErro) {
+        console.error("Erro ao salvar log (login continua):", logErro);
+    }
+    // --- FIM: LOGICA DE LOG DE ACESSO ---
 
     const token = jwt.sign(
       { id: user._id, role: user.role },
@@ -383,6 +391,8 @@ router.put('/admin/reset-senha/:id', authMiddleware, async (req, res) => {
     res.status(500).json({ error: "Erro ao resetar senha." });
   }
 });
+
+// Rota para buscar os logs (admin)
 router.get('/admin/logs', async (req, res) => {
   try {
     // Busca os últimos 50 acessos, do mais recente para o mais antigo
@@ -392,4 +402,5 @@ router.get('/admin/logs', async (req, res) => {
     res.status(500).json({ error: 'Erro ao buscar logs' });
   }
 });
+
 module.exports = router;
