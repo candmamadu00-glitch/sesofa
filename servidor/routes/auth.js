@@ -45,7 +45,7 @@ router.post('/register', async (req, res) => {
   }
 });
 
-// Login (COM O LOG DE ACESSO CORRIGIDO AQUI DENTRO)
+// Login (Com Log de SUCESSO e de FALHA)
 router.post('/login', async (req, res) => {
   try {
     const { email, senha } = req.body;
@@ -53,17 +53,36 @@ router.post('/login', async (req, res) => {
     const user = await User.findOne({ email });
     if (!user) return res.status(400).json({ error: "Usuário não encontrado." });
 
+    // Detectar dispositivo (usado tanto no sucesso quanto na falha)
+    const userAgent = req.headers['user-agent'] || '';
+    const dispositivo = userAgent.includes('Android') ? 'Android' : 
+                        userAgent.includes('iPhone') ? 'iPhone' : 'Computador';
+
     const senhaCorreta = await bcrypt.compare(senha, user.senha);
-    if (!senhaCorreta) return res.status(400).json({ error: "Senha incorreta." });
 
-    // --- INÍCIO: LOGICA DE LOG DE ACESSO ---
+    // --- CENÁRIO 1: SENHA INCORRETA (Log de Alerta) ---
+    if (!senhaCorreta) {
+        try {
+            await AccessLog.create({
+                usuarioId: user._id,
+                nome: user.nome,
+                email: user.email,
+                dispositivo: dispositivo, // Salva qual aparelho tentou invadir
+                data: new Date(),
+                // Se quiser diferenciar visualmente, pode concatenar no nome:
+                // nome: user.nome + " (TENTATIVA FALHA)"
+            });
+            console.log(`[ALERTA] Senha incorreta para: ${user.email}`);
+        } catch (logErro) {
+            console.error("Erro ao salvar log de falha:", logErro);
+        }
+        return res.status(400).json({ error: "Senha incorreta." });
+    }
+
+    // --- CENÁRIO 2: SENHA CORRETA (Log de Sucesso) ---
     try {
-        const userAgent = req.headers['user-agent'] || '';
-        const dispositivo = userAgent.includes('Android') ? 'Android' : 
-                            userAgent.includes('iPhone') ? 'iPhone' : 'Computador';
-
         await AccessLog.create({
-            usuarioId: user._id, // Certifique-se que seu Model usa 'usuarioId' ou 'userId'
+            usuarioId: user._id,
             nome: user.nome,
             email: user.email,
             dispositivo: dispositivo,
@@ -71,10 +90,10 @@ router.post('/login', async (req, res) => {
         });
         console.log(`[LOG] Login efetuado: ${user.email} via ${dispositivo}`);
     } catch (logErro) {
-        console.error("Erro ao salvar log (login continua):", logErro);
+        console.error("Erro ao salvar log de sucesso:", logErro);
     }
-    // --- FIM: LOGICA DE LOG DE ACESSO ---
 
+    // Gerar Token e responder
     const token = jwt.sign(
       { id: user._id, role: user.role },
       process.env.JWT_SECRET || 'segredo_padrao',
@@ -90,12 +109,12 @@ router.post('/login', async (req, res) => {
         role: user.role
       }
     });
+
   } catch (err) {
     console.error("Erro no login:", err);
     res.status(500).json({ error: "Erro no servidor." });
   }
 });
-
 // Recuperação de senha
 router.post('/forgot-password', async (req, res) => {
   const { contato } = req.body;
