@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import api from '../api';
-import { Users, FileText, LogOut, CheckCircle, PlusCircle, Bell, Download, XCircle, Briefcase, Search, Trash2 } from 'lucide-react';
+import { Users, FileText, LogOut, CheckCircle, PlusCircle, Bell, Download, XCircle, Briefcase, Search, Trash2, Calendar, DollarSign, User, Lock } from 'lucide-react';
 import RelatorioFinanceiro from '../components/RelatorioFinanceiro';
 
 const PainelAdmin = () => {
@@ -67,40 +67,31 @@ const PainelAdmin = () => {
     return correspondeBusca && correspondeStatus;
   });
 
-  // --- CORREÇÃO FINAL DO DOWNLOAD ---
+  // --- DOWNLOAD SEGURO ---
   const baixarArquivo = async (url, nomeArquivo, docId) => {
     if (!url) return alert("Erro: Link não encontrado.");
-    
     const secureUrl = url.replace('http://', 'https://');
     setBaixandoId(docId);
 
     try {
       const response = await fetch(secureUrl);
       if (!response.ok) throw new Error("Erro ao acessar o arquivo");
-      
       const blob = await response.blob();
-      
-      // 1. FORÇA O TIPO PDF (Diz pro navegador: "Isso é um PDF, não texto!")
       const pdfBlob = new Blob([blob], { type: 'application/pdf' });
-      
       const downloadUrl = window.URL.createObjectURL(pdfBlob);
       const link = document.createElement('a');
       link.href = downloadUrl;
 
-      // 2. FORÇA A EXTENSÃO .PDF NO NOME
-      // Se o nome não tiver .pdf no final, a gente adiciona na marra.
       let nomeFinal = nomeArquivo || 'documento.pdf';
       if (!nomeFinal.toLowerCase().endsWith('.pdf')) {
           nomeFinal += '.pdf';
       }
 
       link.download = nomeFinal; 
-      
       document.body.appendChild(link);
       link.click();
       link.remove();
       window.URL.revokeObjectURL(downloadUrl);
-
     } catch (error) {
       console.error("Erro no download:", error);
       alert("Erro ao baixar. Tentando abrir em nova aba...");
@@ -130,8 +121,7 @@ const PainelAdmin = () => {
   };
 
   const deletarItem = async (id, tipo) => {
-    const confirmacao = window.confirm(`Tem certeza que deseja EXCLUIR este item?`);
-    if (!confirmacao) return;
+    if (!window.confirm(`Tem certeza que deseja EXCLUIR este item?`)) return;
     try {
       if (tipo === 'documento') await api.delete(`/documentos/${id}`);
       else if (tipo === 'cliente') await api.delete(`/clientes/${id}`);
@@ -166,10 +156,35 @@ const PainelAdmin = () => {
     setAba(novaAba); setBusca(''); setFiltroStatus('Todos');
   };
 
+  // --- COMPONENTES AUXILIARES PARA MOBILE ---
+  const MobileCard = ({ children, titulo, subtitulo, status, actions }) => (
+    <div style={{ backgroundColor: 'white', padding: '15px', borderRadius: '10px', boxShadow: '0 2px 5px rgba(0,0,0,0.1)', marginBottom: '15px', borderLeft: '5px solid var(--gb-green)' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
+        <div>
+          <h4 style={{ margin: 0, color: '#333' }}>{titulo}</h4>
+          {subtitulo && <small style={{ color: '#666' }}>{subtitulo}</small>}
+        </div>
+        {status && <span style={{ padding: '3px 8px', borderRadius: '5px', fontSize: '11px', fontWeight: 'bold', backgroundColor: '#eee', color: '#333' }}>{status}</span>}
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '5px', color: '#555', fontSize: '14px' }}>
+        {children}
+      </div>
+      {actions && <div style={{ marginTop: '15px', display: 'flex', gap: '10px', flexWrap: 'wrap' }}>{actions}</div>}
+    </div>
+  );
+
+  const MobileLabel = ({ icon: Icon, value, color }) => (
+    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        {Icon && <Icon size={14} color="#888" />}
+        <span style={{ color: color || '#555' }}>{value}</span>
+    </div>
+  );
+
+  // --- ESTILOS ---
   const containerPrincipal = { display: 'flex', flexDirection: isMobile ? 'column' : 'row', minHeight: '100vh', backgroundColor: '#f0f2f5' };
   const sidebarContainer = { width: isMobile ? '100%' : '260px', backgroundColor: '#111', color: 'white', padding: isMobile ? '15px 10px' : '25px 15px', position: isMobile ? 'sticky' : 'relative', top: 0, zIndex: 100 };
   const navScrollStyle = { marginTop: isMobile ? '10px' : '30px', display: 'flex', flexDirection: isMobile ? 'row' : 'column', overflowX: isMobile ? 'auto' : 'visible', whiteSpace: 'nowrap', gap: isMobile ? '10px' : '0' };
-  const getItemStyle = (ativo) => ({ padding: '12px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '10px', borderRadius: '5px', backgroundColor: ativo ? 'var(--gb-green)' : isMobile ? '#222' : 'transparent', marginBottom: isMobile ? '0' : '5px', minWidth: isMobile ? 'auto' : '100%' });
+  const getItemStyle = (ativo) => ({ padding: '12px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '10px', borderRadius: '5px', backgroundColor: ativo ? 'var(--gb-green)' : isMobile ? '#222' : 'transparent', marginBottom: isMobile ? '0' : '5px', minWidth: isMobile ? 'auto' : '100%', border: isMobile && !ativo ? '1px solid #333' : 'none' });
 
   return (
     <div style={containerPrincipal}>
@@ -185,38 +200,67 @@ const PainelAdmin = () => {
         </nav>
       </div>
 
-      <div style={{ flex: 1, padding: isMobile ? '20px 15px' : '40px' }}>
+      <div style={{ flex: 1, padding: isMobile ? '20px 15px' : '40px', overflowY: isMobile ? 'auto' : 'visible' }}>
+        
         {aba === 'clientes' && (
           <div style={cardStyle}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '20px', flexDirection: isMobile ? 'column' : 'row' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '20px', flexDirection: isMobile ? 'column' : 'row', gap: '10px' }}>
               <h3>Empresas Atendidas ({clientesFiltrados.length})</h3>
               <div style={searchBoxStyle}>
                 <Search size={18} color="#666" />
-                <input type="text" placeholder="Buscar..." style={{ border: 'none', outline: 'none', width: '100%' }} value={busca} onChange={(e) => setBusca(e.target.value)} />
+                <input type="text" placeholder="Buscar empresa..." style={{ border: 'none', outline: 'none', width: '100%' }} value={busca} onChange={(e) => setBusca(e.target.value)} />
               </div>
             </div>
-            <div style={{ overflowX: 'auto' }}>
-              <table style={{ ...tableStyle, minWidth: '600px' }}>
-                <thead><tr><th style={tableHeader}>Nome</th><th style={tableHeader}>Email</th><th style={tableHeader}>Ação</th></tr></thead>
-                <tbody>{clientesFiltrados.map(c => (
-                  <tr key={c._id}>
-                    <td style={tableCell}>{c.nome}</td><td style={tableCell}>{c.email}</td>
-                    <td style={tableCell}>
-                      <button onClick={() => { setClienteSelecionado(c._id); setAba('financeiro'); }} style={{ cursor: 'pointer', color: 'blue', border: 'none', background: 'none', fontWeight: 'bold', marginRight: '10px' }}>Ver Dashboard</button>
-                      <button onClick={() => deletarItem(c._id, 'cliente')} style={{ cursor: 'pointer', color: 'red', border: 'none', background: 'none' }}><Trash2 size={16} /></button>
-                      <button onClick={() => resetarSenha(c._id, c.nome)} title="Resetar Senha" style={{ border: 'none', background: '#FF9800', color: 'white', borderRadius: '5px', padding: '5px', cursor: 'pointer' }}>🔑</button>
-                    </td>
-                  </tr>
-                ))}</tbody>
-              </table>
-            </div>
+
+            {isMobile ? (
+               <div>
+                  {clientesFiltrados.map(c => (
+                      <MobileCard key={c._id} titulo={c.nome} actions={
+                          <>
+                             <button onClick={() => { setClienteSelecionado(c._id); setAba('financeiro'); }} className="btn-action" style={{backgroundColor: '#007bff'}}>Dashboard</button>
+                             <button onClick={() => resetarSenha(c._id, c.nome)} className="btn-action" style={{backgroundColor: '#FF9800'}}>Resetar Senha</button>
+                             <button onClick={() => deletarItem(c._id, 'cliente')} className="btn-action" style={{backgroundColor: '#dc3545'}}>Excluir</button>
+                          </>
+                      }>
+                         <MobileLabel icon={FileText} value={c.email} />
+                      </MobileCard>
+                  ))}
+               </div>
+            ) : (
+                <div style={{ overflowX: 'auto' }}>
+                <table style={{ ...tableStyle, minWidth: '600px' }}>
+                    <thead><tr><th style={tableHeader}>Nome</th><th style={tableHeader}>Email</th><th style={tableHeader}>Ação</th></tr></thead>
+                    <tbody>{clientesFiltrados.map(c => (
+                    <tr key={c._id}>
+                        <td style={tableCell}>{c.nome}</td><td style={tableCell}>{c.email}</td>
+                        <td style={tableCell}>
+                        <button onClick={() => { setClienteSelecionado(c._id); setAba('financeiro'); }} style={{ cursor: 'pointer', color: 'blue', border: 'none', background: 'none', fontWeight: 'bold', marginRight: '10px' }}>Dashboard</button>
+                        <button onClick={() => deletarItem(c._id, 'cliente')} style={{ cursor: 'pointer', color: 'red', border: 'none', background: 'none' }}><Trash2 size={16} /></button>
+                        <button onClick={() => resetarSenha(c._id, c.nome)} title="Resetar Senha" style={{ border: 'none', background: '#FF9800', color: 'white', borderRadius: '5px', padding: '5px', cursor: 'pointer', marginLeft: '5px' }}><Lock size={14}/></button>
+                        </td>
+                    </tr>
+                    ))}</tbody>
+                </table>
+                </div>
+            )}
           </div>
         )}
 
         {aba === 'solicitacoes' && (
           <div style={cardStyle}>
              <h3>Solicitações</h3>
-             <div style={{ overflowX: 'auto' }}><table style={{ ...tableStyle, minWidth: '600px' }}><thead><tr><th style={tableHeader}>Cliente</th><th style={tableHeader}>Serviço</th><th style={tableHeader}>Detalhes</th><th style={tableHeader}>Data</th></tr></thead><tbody>{solicitacoes.map(s => (<tr key={s._id}><td style={tableCell}>{s.clienteId?.nome}</td><td style={tableCell}>{s.servicoDesejado}</td><td style={tableCell}>{s.detalhes}</td><td style={tableCell}>{new Date(s.dataSolicitacao || Date.now()).toLocaleDateString()}</td></tr>))}</tbody></table></div>
+             {isMobile ? (
+                 <div>
+                    {solicitacoes.map(s => (
+                        <MobileCard key={s._id} titulo={s.clienteId?.nome} subtitulo={new Date(s.dataSolicitacao).toLocaleDateString()}>
+                            <MobileLabel icon={Briefcase} value={s.servicoDesejado} color="var(--gb-green)" />
+                            <p style={{margin: '5px 0', fontStyle: 'italic'}}>"{s.detalhes}"</p>
+                        </MobileCard>
+                    ))}
+                 </div>
+             ) : (
+                 <div style={{ overflowX: 'auto' }}><table style={{ ...tableStyle, minWidth: '600px' }}><thead><tr><th style={tableHeader}>Cliente</th><th style={tableHeader}>Serviço</th><th style={tableHeader}>Detalhes</th><th style={tableHeader}>Data</th></tr></thead><tbody>{solicitacoes.map(s => (<tr key={s._id}><td style={tableCell}>{s.clienteId?.nome}</td><td style={tableCell}>{s.servicoDesejado}</td><td style={tableCell}>{s.detalhes}</td><td style={tableCell}>{new Date(s.dataSolicitacao || Date.now()).toLocaleDateString()}</td></tr>))}</tbody></table></div>
+             )}
           </div>
         )}
 
@@ -225,7 +269,19 @@ const PainelAdmin = () => {
             <h3>Registrar Novo Serviço</h3>
             <form onSubmit={salvarServico} style={{ marginBottom: '30px' }}><select style={inputStyle} value={servicoForm.clienteId} onChange={e => setServicoForm({ ...servicoForm, clienteId: e.target.value })} required><option value="">Selecione o Cliente</option>{clientes.map(c => <option key={c._id} value={c._id}>{c.nome}</option>)}</select><input type="text" placeholder="Serviço" style={inputStyle} value={servicoForm.titulo} onChange={e => setServicoForm({ ...servicoForm, titulo: e.target.value })} required /><input type="text" placeholder="Descrição" style={inputStyle} value={servicoForm.descricao} onChange={e => setServicoForm({ ...servicoForm, descricao: e.target.value })} required /><input type="number" placeholder="Valor" style={inputStyle} value={servicoForm.custo} onChange={e => setServicoForm({ ...servicoForm, custo: e.target.value })} required /><button className="btn-gb" style={{ width: '100%' }}>Salvar</button></form>
             <hr /><h4 style={{ color: '#555' }}>Histórico</h4>
-            <div style={{ overflowX: 'auto' }}><table style={{ ...tableStyle, minWidth: '600px' }}><thead><tr style={{ background: '#f4f4f4' }}><th style={tableHeader}>Data</th><th style={tableHeader}>Cliente</th><th style={tableHeader}>Serviço</th><th style={tableHeader}>Valor</th><th style={tableHeader}>Ação</th></tr></thead><tbody>{historicoServicos.map(serv => (<tr key={serv._id}><td style={tableCell}>{new Date(serv.data).toLocaleDateString()}</td><td style={tableCell}>{serv.clienteId?.nome}</td><td style={tableCell}>{serv.titulo}</td><td style={tableCell}>{serv.custo}</td><td style={tableCell}><button onClick={() => deletarItem(serv._id, 'servico')} style={{ border: 'none', background: 'transparent', color: 'red' }}><Trash2 size={16} /></button></td></tr>))}</tbody></table></div>
+            {isMobile ? (
+                <div>
+                   {historicoServicos.map(serv => (
+                       <MobileCard key={serv._id} titulo={serv.titulo} actions={<button onClick={() => deletarItem(serv._id, 'servico')} className="btn-action" style={{backgroundColor: '#dc3545'}}>Excluir</button>}>
+                           <MobileLabel icon={User} value={serv.clienteId?.nome} />
+                           <MobileLabel icon={DollarSign} value={serv.custo + ' CFA'} color="#dc3545" />
+                           <MobileLabel icon={Calendar} value={new Date(serv.data).toLocaleDateString()} />
+                       </MobileCard>
+                   ))}
+                </div>
+            ) : (
+                <div style={{ overflowX: 'auto' }}><table style={{ ...tableStyle, minWidth: '600px' }}><thead><tr style={{ background: '#f4f4f4' }}><th style={tableHeader}>Data</th><th style={tableHeader}>Cliente</th><th style={tableHeader}>Serviço</th><th style={tableHeader}>Valor</th><th style={tableHeader}>Ação</th></tr></thead><tbody>{historicoServicos.map(serv => (<tr key={serv._id}><td style={tableCell}>{new Date(serv.data).toLocaleDateString()}</td><td style={tableCell}>{serv.clienteId?.nome}</td><td style={tableCell}>{serv.titulo}</td><td style={tableCell}>{serv.custo}</td><td style={tableCell}><button onClick={() => deletarItem(serv._id, 'servico')} style={{ border: 'none', background: 'transparent', color: 'red' }}><Trash2 size={16} /></button></td></tr>))}</tbody></table></div>
+            )}
           </div>
         )}
 
@@ -234,7 +290,18 @@ const PainelAdmin = () => {
             <h3>Enviar Orientação</h3>
             <form onSubmit={enviarDica} style={{ marginBottom: '30px' }}><select style={inputStyle} value={consultoriaForm.clienteId} onChange={e => setConsultoriaForm({ ...consultoriaForm, clienteId: e.target.value })} required><option value="">Selecione o Cliente</option>{clientes.map(c => <option key={c._id} value={c._id}>{c.nome}</option>)}</select><input type="text" placeholder="Título" style={inputStyle} value={consultoriaForm.titulo} onChange={e => setConsultoriaForm({ ...consultoriaForm, titulo: e.target.value })} required /><textarea placeholder="Mensagem..." style={{ ...inputStyle, height: '100px' }} value={consultoriaForm.mensagem} onChange={e => setConsultoriaForm({ ...consultoriaForm, mensagem: e.target.value })} required /><button className="btn-gb" style={{ width: '100%' }}>Enviar</button></form>
             <hr /><h4 style={{ color: '#555' }}>Histórico</h4>
-            <div style={{ overflowX: 'auto' }}><table style={{ ...tableStyle, minWidth: '600px' }}><thead><tr style={{ background: '#f4f4f4' }}><th style={tableHeader}>Data</th><th style={tableHeader}>Cliente</th><th style={tableHeader}>Título</th><th style={tableHeader}>Ação</th></tr></thead><tbody>{historicoConsultorias.map(dica => (<tr key={dica._id}><td style={tableCell}>{new Date(dica.data).toLocaleDateString()}</td><td style={tableCell}>{dica.clienteId?.nome}</td><td style={tableCell}>{dica.titulo}</td><td style={tableCell}><button onClick={() => deletarItem(dica._id, 'consultoria')} style={{ border: 'none', background: 'transparent', color: 'red' }}><Trash2 size={16} /></button></td></tr>))}</tbody></table></div>
+            {isMobile ? (
+                 <div>
+                    {historicoConsultorias.map(dica => (
+                        <MobileCard key={dica._id} titulo={dica.titulo} actions={<button onClick={() => deletarItem(dica._id, 'consultoria')} className="btn-action" style={{backgroundColor: '#dc3545'}}>Excluir</button>}>
+                            <MobileLabel icon={User} value={dica.clienteId?.nome} />
+                            <MobileLabel icon={Calendar} value={new Date(dica.data).toLocaleDateString()} />
+                        </MobileCard>
+                    ))}
+                 </div>
+            ) : (
+                <div style={{ overflowX: 'auto' }}><table style={{ ...tableStyle, minWidth: '600px' }}><thead><tr style={{ background: '#f4f4f4' }}><th style={tableHeader}>Data</th><th style={tableHeader}>Cliente</th><th style={tableHeader}>Título</th><th style={tableHeader}>Ação</th></tr></thead><tbody>{historicoConsultorias.map(dica => (<tr key={dica._id}><td style={tableCell}>{new Date(dica.data).toLocaleDateString()}</td><td style={tableCell}>{dica.clienteId?.nome}</td><td style={tableCell}>{dica.titulo}</td><td style={tableCell}><button onClick={() => deletarItem(dica._id, 'consultoria')} style={{ border: 'none', background: 'transparent', color: 'red' }}><Trash2 size={16} /></button></td></tr>))}</tbody></table></div>
+            )}
           </div>
         )}
 
@@ -243,48 +310,65 @@ const PainelAdmin = () => {
         {aba === 'documentos' && (
           <div style={cardStyle}>
             <h3>Documentos Recebidos</h3>
-            <div style={{ overflowX: 'auto' }}>
-              <table style={{ ...tableStyle, minWidth: '800px' }}>
-                <thead><tr style={{ background: '#333', color: 'white' }}><th style={tableHeader}>Data</th><th style={tableHeader}>Cliente</th><th style={tableHeader}>Arquivo</th><th style={tableHeader}>Status</th><th style={tableHeader}>Ações</th></tr></thead>
-                <tbody>{documentosFiltrados.map(doc => (
-                  <tr key={doc._id}>
-                    <td style={tableCell}>{new Date(doc.dataEnvio || Date.now()).toLocaleDateString()}</td>
-                    <td style={tableCell}>{doc.clienteId?.nome}</td>
-                    <td style={tableCell}>
-                      <button 
-                        onClick={() => baixarArquivo(doc.caminho, doc.nomeArquivo, doc._id)} 
-                        disabled={baixandoId === doc._id}
-                        style={{ 
-                          background: 'none', 
-                          border: 'none', 
-                          cursor: baixandoId === doc._id ? 'wait' : 'pointer', 
-                          color: baixandoId === doc._id ? '#999' : '#007bff', 
-                          fontWeight: 'bold', 
-                          display: 'flex', 
-                          alignItems: 'center', 
-                          gap: '5px' 
-                        }}
-                      >
-                        {baixandoId === doc._id ? (
-                           <>⏳ Baixando...</>
-                        ) : (
-                           <><Download size={16} /> Baixar</>
-                        )}
-                      </button>
-                    </td>
-                    <td style={tableCell}>{doc.status || 'Pendente'}</td>
-                    <td style={{ ...tableCell, display: 'flex', gap: '10px' }}>
-                       <button onClick={() => mudarStatusDoc(doc._id, 'Aprovado')} style={{ border: 'none', background: '#28a745', color: 'white', borderRadius: '5px', padding: '5px' }}><CheckCircle size={18} /></button>
-                       <button onClick={() => mudarStatusDoc(doc._id, 'Recusado')} style={{ border: 'none', background: '#dc3545', color: 'white', borderRadius: '5px', padding: '5px' }}><XCircle size={18} /></button>
-                       <button onClick={() => deletarItem(doc._id, 'documento')} style={{ border: 'none', background: '#111', color: 'white', borderRadius: '5px', padding: '5px' }}><Trash2 size={18} /></button>
-                    </td>
-                  </tr>
-                ))}</tbody>
-              </table>
-            </div>
+            
+            {isMobile ? (
+                <div>
+                   {documentosFiltrados.map(doc => (
+                       <MobileCard key={doc._id} titulo={doc.nomeArquivo} status={doc.status} 
+                         actions={
+                             <>
+                                <button onClick={() => baixarArquivo(doc.caminho, doc.nomeArquivo, doc._id)} className="btn-action" style={{backgroundColor: '#007bff'}} disabled={baixandoId === doc._id}>
+                                    {baixandoId === doc._id ? "..." : <Download size={16}/>}
+                                </button>
+                                <button onClick={() => mudarStatusDoc(doc._id, 'Aprovado')} className="btn-action" style={{backgroundColor: '#28a745'}}><CheckCircle size={16}/></button>
+                                <button onClick={() => mudarStatusDoc(doc._id, 'Recusado')} className="btn-action" style={{backgroundColor: '#dc3545'}}><XCircle size={16}/></button>
+                                <button onClick={() => deletarItem(doc._id, 'documento')} className="btn-action" style={{backgroundColor: '#333'}}><Trash2 size={16}/></button>
+                             </>
+                         }
+                       >
+                           <MobileLabel icon={User} value={doc.clienteId?.nome} />
+                           <MobileLabel icon={Calendar} value={new Date(doc.dataEnvio).toLocaleDateString()} />
+                       </MobileCard>
+                   ))}
+                </div>
+            ) : (
+                <div style={{ overflowX: 'auto' }}>
+                <table style={{ ...tableStyle, minWidth: '800px' }}>
+                    <thead><tr style={{ background: '#333', color: 'white' }}><th style={tableHeader}>Data</th><th style={tableHeader}>Cliente</th><th style={tableHeader}>Arquivo</th><th style={tableHeader}>Status</th><th style={tableHeader}>Ações</th></tr></thead>
+                    <tbody>{documentosFiltrados.map(doc => (
+                    <tr key={doc._id}>
+                        <td style={tableCell}>{new Date(doc.dataEnvio || Date.now()).toLocaleDateString()}</td>
+                        <td style={tableCell}>{doc.clienteId?.nome}</td>
+                        <td style={tableCell}>
+                        <button 
+                            onClick={() => baixarArquivo(doc.caminho, doc.nomeArquivo, doc._id)} 
+                            disabled={baixandoId === doc._id}
+                            style={{ background: 'none', border: 'none', cursor: baixandoId === doc._id ? 'wait' : 'pointer', color: baixandoId === doc._id ? '#999' : '#007bff', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '5px' }}
+                        >
+                            {baixandoId === doc._id ? <>⏳ Baixando...</> : <><Download size={16} /> Baixar</>}
+                        </button>
+                        </td>
+                        <td style={tableCell}>{doc.status || 'Pendente'}</td>
+                        <td style={{ ...tableCell, display: 'flex', gap: '10px' }}>
+                            <button onClick={() => mudarStatusDoc(doc._id, 'Aprovado')} style={{ border: 'none', background: '#28a745', color: 'white', borderRadius: '5px', padding: '5px', cursor: 'pointer' }}><CheckCircle size={18} /></button>
+                            <button onClick={() => mudarStatusDoc(doc._id, 'Recusado')} style={{ border: 'none', background: '#dc3545', color: 'white', borderRadius: '5px', padding: '5px', cursor: 'pointer' }}><XCircle size={18} /></button>
+                            <button onClick={() => deletarItem(doc._id, 'documento')} style={{ border: 'none', background: '#111', color: 'white', borderRadius: '5px', padding: '5px', cursor: 'pointer' }}><Trash2 size={18} /></button>
+                        </td>
+                    </tr>
+                    ))}</tbody>
+                </table>
+                </div>
+            )}
           </div>
         )}
       </div>
+      
+      {/* STYLE TAG PARA BOTÕES MOBILE */}
+      <style>{`
+         .btn-action {
+             border: none; color: white; border-radius: 5px; padding: 8px 12px; cursor: pointer; font-size: 14px; display: flex; align-items: center; justify-content: center;
+         }
+      `}</style>
     </div>
   );
 };

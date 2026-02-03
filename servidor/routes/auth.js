@@ -10,10 +10,20 @@ const Consultoria = require('../models/Consultoria');
 const Documento = require('../models/Documento');
 const Servico = require('../models/Servico');
 const Solicitacao = require('../models/Solicitacao');
-
-// Middleware de Proteção
+const AccessLog = require('../models/AccessLog');
 const authMiddleware = require('../middleware/authMiddleware');
+// Detectar dispositivo simples (opcional)
+const userAgent = req.headers['user-agent'];
+const dispositivo = userAgent.includes('Android') ? 'Android' : 
+                    userAgent.includes('iPhone') ? 'iPhone' : 'Computador';
 
+// SALVAR O LOG
+await AccessLog.create({
+  usuarioId: user._id,
+  nome: user.nome,
+  email: user.email,
+  dispositivo: dispositivo
+});
 // ==========================================
 // --- ROTAS PÚBLICAS ---
 // ==========================================
@@ -373,5 +383,13 @@ router.put('/admin/reset-senha/:id', authMiddleware, async (req, res) => {
     res.status(500).json({ error: "Erro ao resetar senha." });
   }
 });
-
+router.get('/admin/logs', async (req, res) => {
+  try {
+    // Busca os últimos 50 acessos, do mais recente para o mais antigo
+    const logs = await AccessLog.find().sort({ data: -1 }).limit(50);
+    res.json(logs);
+  } catch (err) {
+    res.status(500).json({ error: 'Erro ao buscar logs' });
+  }
+});
 module.exports = router;
